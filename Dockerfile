@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     uuid-dev libmariadb-dev libhiredis-dev libbrotli-dev \
     libyaml-cpp-dev zlib1g-dev \
     libhpdf-dev \
+    libsdbus-c++-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy source code
@@ -48,7 +49,7 @@ COPY llm_prompt.txt ./
 
 # Build HMS-CPAP with Web UI support
 RUN mkdir build && cd build && \
-    cmake -DBUILD_TESTS=OFF -DBUILD_WITH_WEB=ON -DBUILD_WITH_MYSQL=ON .. && \
+    cmake -DBUILD_TESTS=OFF -DBUILD_WITH_WEB=ON -DBUILD_WITH_MYSQL=ON -DBUILD_WITH_BLE=ON .. && \
     make -j$(nproc) && \
     strip hms_cpap
 
@@ -75,10 +76,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libdrogon1t64 \
     libtrantor1 \
     libhpdf-2.3.0 \
+    libsdbus-c++2 \
+    bluez \
+    dbus \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
 RUN useradd -r -u 1000 -m -s /bin/bash cpap
+
+# Grant cpap user access to BlueZ / D-Bus for direct BLE O2 Ring connectivity
+RUN usermod -aG bluetooth cpap
 
 # Copy binary from builder
 COPY --from=builder /build/build/hms_cpap /usr/local/bin/hms_cpap

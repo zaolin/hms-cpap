@@ -5,7 +5,10 @@ services:
   # HMS-CPAP Service
   # =============================================================================
   hms-cpap:
-    image: ghcr.io/aamat09/hms-cpap:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hms-cpap:local
     container_name: hms-cpap
     restart: unless-stopped
 
@@ -44,6 +47,11 @@ services:
       - cpap_archive:/data/cpap_archive
       # Temporary processing directory
       - cpap_temp:/tmp/hms-cpap
+      # BlueZ D-Bus socket - required for direct BLE O2 Ring connectivity.
+      # Host bluez daemon must be running; container connects via D-Bus.
+      - /run/dbus:/run/dbus
+      # Host Bluetooth adapter (needed by bluez for BLE)
+      - /sys/class/bluetooth:/sys/class/bluetooth
 
     ports:
       - "8893:8893"  # Health check endpoint
