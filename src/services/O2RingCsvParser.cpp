@@ -40,9 +40,11 @@ std::string trim(const std::string& s) {
     return s.substr(a, b - a + 1);
 }
 
-// Parse a Wellue time field into a UTC time_point. Handles both:
-//   "06:53:07 Apr 12 2026"     (24-hour)
+// Parse a Wellue time field into a UTC time_point. Handles:
+//   "06:53:07 Apr 12 2026"     (24-hour, English month name)
 //   "11:20:29PM Jun 19, 2026"  (12-hour AM/PM, comma after the day)
+//   "01:11:46 21/07/2026"      (24-hour, numeric DD/MM/YYYY — German/EU export)
+//   "01:11:46 2026-07-21"      (24-hour, ISO-style YYYY-MM-DD)
 // Returns false if it can't be parsed. We treat the wall clock as UTC; only
 // deltas matter for interval/duration, so the zone is irrelevant as long as
 // it's consistent.
@@ -70,13 +72,32 @@ bool parseTimestamp(std::string t, std::chrono::system_clock::time_point& out) {
     if (ampm == 2 && hh < 12) hh += 12;   // PM
     if (ampm == 1 && hh == 12) hh = 0;    // 12 AM -> 00
 
-    char mon[16] = {};
-    int day = 0, year = 0;
-    if (sscanf(rest.c_str(), "%15s %d %d", mon, &day, &year) < 3) return false;
-    int month = 0;
-    for (int i = 0; i < 12; ++i)
-        if (strncmp(mon, months[i], 3) == 0) { month = i + 1; break; }
-    if (month == 0 || day < 1 || year < 2000) return false;
+    int month = 0, day = 0, year = 0;
+
+    // First try the numeric forms: "DD/MM/YYYY" or "YYYY-MM-DD".
+    int n1 = 0, n2 = 0, n3 = 0;
+    char sep1 = 0, sep2 = 0;
+    // Numeric "DD/MM/YYYY"
+    if (sscanf(rest.c_str(), "%d/%d/%d", &n1, &n2, &n3) == 3) {
+        if (n1 > 31 && n1 > 2000) {              // "YYYY/MM/DD" fallback
+            year = n1; month = n2; day = n3;
+        } else {                                  // "DD/MM/YYYY"
+            day = n1; month = n2; year = n3;
+        }
+    }
+    // Numeric ISO "YYYY-MM-DD" (rest uses dashes, not slashes)
+    else if (sscanf(rest.c_str(), "%d-%d-%d", &n1, &n2, &n3) == 3 && n1 > 2000) {
+        year = n1; month = n2; day = n3;
+    }
+    // Otherwise fall back to the original Wellue "Mon DD YYYY" form.
+    else {
+        char mon[16] = {};
+        if (sscanf(rest.c_str(), "%15s %d %d", mon, &day, &year) < 3) return false;
+        for (int i = 0; i < 12; ++i)
+            if (strncmp(mon, months[i], 3) == 0) { month = i + 1; break; }
+    }
+
+    if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2000) return false;
 
     std::tm tm{};
     tm.tm_year = year - 1900;
