@@ -338,6 +338,8 @@ private:
         int burst_interval = 0;
         bool o2ring_enabled = false;
         std::string o2ring_mode, o2ring_mule_url;
+        std::string o2ring_vh_email, o2ring_vh_password, o2ring_vh_base_url;
+        int o2ring_vh_poll_interval = 600;
     };
     ConfigSnapshot last_config_;
 

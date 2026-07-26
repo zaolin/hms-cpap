@@ -75,8 +75,13 @@ struct AppConfig {
     // O2 Ring Oximetry (optional)
     struct O2Ring {
         bool enabled = false;
-        std::string mode = "http";      // "http" or "ble"
-        std::string mule_url;           // e.g. "http://cpapdash.local"
+        std::string mode = "http";      // "http", "ble", or "cloud"
+        std::string mule_url;           // e.g. "http://cpapdash.local" (for HTTP mode)
+        // ViHealth cloud credentials (for mode="cloud")
+        std::string vihealth_email;
+        std::string vihealth_password;
+        std::string vihealth_base_url = "https://ai.viatomtech.com";
+        int vihealth_poll_interval = 600;  // seconds between cloud polls
     } o2ring;
 
     // Sleep Stage Inference (optional)
@@ -353,6 +358,10 @@ struct AppConfig {
                 if (o.contains("enabled"))              config.o2ring.enabled = o["enabled"];
                 if (o.contains("mode"))                 config.o2ring.mode = o["mode"];
                 if (o.contains("mule_url"))             config.o2ring.mule_url = o["mule_url"];
+                if (o.contains("vihealth_email"))       config.o2ring.vihealth_email = o["vihealth_email"];
+                if (o.contains("vihealth_password"))    config.o2ring.vihealth_password = o["vihealth_password"];
+                if (o.contains("vihealth_base_url"))    config.o2ring.vihealth_base_url = o["vihealth_base_url"];
+                if (o.contains("vihealth_poll_interval")) config.o2ring.vihealth_poll_interval = o["vihealth_poll_interval"];
             }
 
             if (j.contains("sleep_stage")) {
@@ -441,6 +450,10 @@ struct AppConfig {
             j["o2ring"]["enabled"] = o2ring.enabled;
             j["o2ring"]["mode"] = o2ring.mode;
             j["o2ring"]["mule_url"] = o2ring.mule_url;
+            j["o2ring"]["vihealth_email"] = o2ring.vihealth_email;
+            j["o2ring"]["vihealth_password"] = o2ring.vihealth_password;
+            j["o2ring"]["vihealth_base_url"] = o2ring.vihealth_base_url;
+            j["o2ring"]["vihealth_poll_interval"] = o2ring.vihealth_poll_interval;
 
             j["sleep_stage"]["enabled"] = sleep_stage.enabled;
             j["sleep_stage"]["live_inference"] = sleep_stage.live_inference;
@@ -521,6 +534,10 @@ struct AppConfig {
         j["o2ring"]["enabled"] = o2ring.enabled;
         j["o2ring"]["mode"] = o2ring.mode;
         j["o2ring"]["mule_url"] = o2ring.mule_url;
+        j["o2ring"]["vihealth_email"] = o2ring.vihealth_email;
+        j["o2ring"]["vihealth_password"] = o2ring.vihealth_password.empty() ? "" : "********";
+        j["o2ring"]["vihealth_base_url"] = o2ring.vihealth_base_url;
+        j["o2ring"]["vihealth_poll_interval"] = o2ring.vihealth_poll_interval;
 
         j["sleep_stage"]["enabled"] = sleep_stage.enabled;
         j["sleep_stage"]["live_inference"] = sleep_stage.live_inference;

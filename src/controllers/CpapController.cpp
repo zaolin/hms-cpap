@@ -317,6 +317,11 @@ void CpapController::updateConfig(const drogon::HttpRequestPtr& req,
         if (o.isMember("enabled")) config_->o2ring.enabled = o["enabled"].asBool();
         if (o.isMember("mode")) config_->o2ring.mode = o["mode"].asString();
         if (o.isMember("mule_url")) config_->o2ring.mule_url = o["mule_url"].asString();
+        if (o.isMember("vihealth_email")) config_->o2ring.vihealth_email = o["vihealth_email"].asString();
+        if (o.isMember("vihealth_password") && o["vihealth_password"].asString() != "********")
+            config_->o2ring.vihealth_password = o["vihealth_password"].asString();
+        if (o.isMember("vihealth_base_url")) config_->o2ring.vihealth_base_url = o["vihealth_base_url"].asString();
+        if (o.isMember("vihealth_poll_interval")) config_->o2ring.vihealth_poll_interval = o["vihealth_poll_interval"].asInt();
     }
 
     if (j.isMember("sleephq")) {

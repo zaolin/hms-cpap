@@ -40,8 +40,12 @@ export interface AppConfig {
   };
   o2ring: {
     enabled: boolean;
-    mode: string;          // 'http' | 'ble'
+    mode: string;          // 'http' | 'ble' | 'cloud'
     mule_url: string;      // for HTTP mode
+    vihealth_email: string;
+    vihealth_password: string;
+    vihealth_base_url: string;
+    vihealth_poll_interval: number;
   };
   sleephq: {
     enabled: boolean;

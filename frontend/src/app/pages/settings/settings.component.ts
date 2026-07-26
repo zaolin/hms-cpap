@@ -68,6 +68,7 @@ import { AppConfig } from '../../models/config.model';
                 <select [(ngModel)]="config.o2ring.mode" name="o2ring_mode">
                   <option value="http">HTTP (via Mule C3)</option>
                   <option value="ble">BLE Direct</option>
+                  <option value="cloud">ViHealth Cloud</option>
                 </select>
               </label>
               <label *ngIf="config.o2ring.mode === 'http'">
@@ -75,6 +76,30 @@ import { AppConfig } from '../../models/config.model';
                 <input type="text" [(ngModel)]="config.o2ring.mule_url" name="o2ring_mule_url"
                        placeholder="http://192.168.2.74" />
                 <span class="hint">IP of the mule C3 bridging the O2 Ring via BLE</span>
+              </label>
+              <label *ngIf="config.o2ring.mode === 'cloud'">
+                ViHealth Email
+                <input type="email" [(ngModel)]="config.o2ring.vihealth_email" name="o2ring_vh_email"
+                       placeholder="you@example.com" />
+                <span class="hint">Your ViHealth app account email</span>
+              </label>
+              <label *ngIf="config.o2ring.mode === 'cloud'">
+                ViHealth Password
+                <input type="password" [(ngModel)]="config.o2ring.vihealth_password" name="o2ring_vh_password"
+                       placeholder="********" />
+                <span class="hint">Your ViHealth app account password</span>
+              </label>
+              <label *ngIf="config.o2ring.mode === 'cloud'">
+                ViHealth Server
+                <input type="text" [(ngModel)]="config.o2ring.vihealth_base_url" name="o2ring_vh_base_url"
+                       placeholder="https://ai.viatomtech.com" />
+                <span class="hint">Default is the US server. After login, the service auto-detects your region (EU users are routed to eu-cloud.viatomtech.com). Only override if auto-detection fails.</span>
+              </label>
+              <label *ngIf="config.o2ring.mode === 'cloud'">
+                Poll Interval (seconds)
+                <input type="number" [(ngModel)]="config.o2ring.vihealth_poll_interval" name="o2ring_vh_poll_interval"
+                       min="60" step="60" />
+                <span class="hint">How often to check for new sessions (default 600 = 10 min)</span>
               </label>
               <label *ngIf="config.o2ring.mode === 'ble'">
                 <span class="hint" *ngIf="bleStatus === 'checking'">Checking Bluetooth adapter...</span>
@@ -642,7 +667,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
           cfg.ml_training = { enabled: false, schedule: 'weekly', model_dir: '', min_days: 30, max_training_days: 0 };
         }
         if (!cfg.o2ring) {
-          cfg.o2ring = { enabled: false, mode: 'http', mule_url: '' };
+          cfg.o2ring = {
+            enabled: false, mode: 'http', mule_url: '',
+            vihealth_email: '', vihealth_password: '',
+            vihealth_base_url: 'https://ai.viatomtech.com',
+            vihealth_poll_interval: 600
+          };
         }
         if (!cfg.sleephq) {
           cfg.sleephq = { enabled: false, client_id: '', client_secret: '',

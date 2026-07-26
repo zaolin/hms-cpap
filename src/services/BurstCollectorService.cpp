@@ -6,6 +6,7 @@
 #ifdef WITH_BLE
 #include "clients/O2RingBleClient.h"
 #endif
+#include "clients/ViHealthCloudClient.h"
 #include "utils/ConfigManager.h"
 #include "utils/AppConfig.h"
 #include "utils/FileUtils.h"
@@ -208,6 +209,21 @@ void BurstCollectorService::initO2Ring() {
     if (!client && !o2ring_url.empty()) {
         client = std::make_shared<O2RingClient>(o2ring_url);
         std::cout << "O2Ring: Enabled (mode=http, mule=" << o2ring_url << ")" << std::endl;
+    }
+    if (!client && o2ring_mode == "cloud") {
+        ViHealthCloudClient::Config vhcfg;
+        vhcfg.base_url = app_config_->o2ring.vihealth_base_url;
+        vhcfg.email = app_config_->o2ring.vihealth_email;
+        vhcfg.password = app_config_->o2ring.vihealth_password;
+        vhcfg.poll_interval_seconds = app_config_->o2ring.vihealth_poll_interval;
+        if (vhcfg.email.empty() || vhcfg.password.empty()) {
+            std::cout << "O2Ring: mode=cloud but no ViHealth email/password configured"
+                      << std::endl;
+        } else {
+            client = std::make_shared<ViHealthCloudClient>(vhcfg);
+            std::cout << "O2Ring: Enabled (mode=cloud, ViHealth " << vhcfg.email << ")"
+                      << std::endl;
+        }
     }
     if (!client) {
         std::cout << "O2Ring: enabled but NO client could be created "
@@ -1937,6 +1953,10 @@ void BurstCollectorService::snapshotConfig(ConfigSnapshot& snap) {
     snap.o2ring_enabled = app_config_->o2ring.enabled;
     snap.o2ring_mode = app_config_->o2ring.mode;
     snap.o2ring_mule_url = app_config_->o2ring.mule_url;
+    snap.o2ring_vh_email = app_config_->o2ring.vihealth_email;
+    snap.o2ring_vh_password = app_config_->o2ring.vihealth_password;
+    snap.o2ring_vh_base_url = app_config_->o2ring.vihealth_base_url;
+    snap.o2ring_vh_poll_interval = app_config_->o2ring.vihealth_poll_interval;
 }
 
 void BurstCollectorService::reloadConfig() {
@@ -2096,7 +2116,11 @@ void BurstCollectorService::reloadConfig() {
     // O2 Ring
     if (nc.o2ring_enabled != last_config_.o2ring_enabled ||
         nc.o2ring_mule_url != last_config_.o2ring_mule_url ||
-        nc.o2ring_mode != last_config_.o2ring_mode) {
+        nc.o2ring_mode != last_config_.o2ring_mode ||
+        nc.o2ring_vh_email != last_config_.o2ring_vh_email ||
+        nc.o2ring_vh_password != last_config_.o2ring_vh_password ||
+        nc.o2ring_vh_base_url != last_config_.o2ring_vh_base_url ||
+        nc.o2ring_vh_poll_interval != last_config_.o2ring_vh_poll_interval) {
         if (nc.o2ring_enabled) {
             std::shared_ptr<IO2RingClient> client;
 #ifdef WITH_BLE
@@ -2115,6 +2139,21 @@ void BurstCollectorService::reloadConfig() {
             if (!client && !nc.o2ring_mule_url.empty()) {
                 client = std::make_shared<O2RingClient>(nc.o2ring_mule_url);
                 std::cout << "Config reload: O2Ring -> http (mule=" << nc.o2ring_mule_url << ")" << std::endl;
+            }
+            if (!client && nc.o2ring_mode == "cloud") {
+                ViHealthCloudClient::Config vhcfg;
+                vhcfg.base_url = app_config_->o2ring.vihealth_base_url;
+                vhcfg.email = app_config_->o2ring.vihealth_email;
+                vhcfg.password = app_config_->o2ring.vihealth_password;
+                vhcfg.poll_interval_seconds = app_config_->o2ring.vihealth_poll_interval;
+                if (vhcfg.email.empty() || vhcfg.password.empty()) {
+                    std::cout << "Config reload: O2Ring mode=cloud but no ViHealth credentials"
+                              << std::endl;
+                } else {
+                    client = std::make_shared<ViHealthCloudClient>(vhcfg);
+                    std::cout << "Config reload: O2Ring -> cloud (ViHealth " << vhcfg.email << ")"
+                              << std::endl;
+                }
             }
             if (!client) {
                 std::cout << "Config reload: O2Ring enabled but NO client could be created "
