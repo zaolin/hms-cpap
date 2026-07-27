@@ -51,9 +51,9 @@ bool OximetryService::collectAndPublish() {
             continue;
         }
 
-        // Debug: dump raw file to /tmp/hms-cpap/ for format inspection
+        // Debug: dump raw file to config dir (bind mount) for format inspection
         {
-            std::string dump_dir = "/tmp/hms-cpap";
+            std::string dump_dir = "/home/cpap/.hms-cpap/vihealth_debug";
             std::filesystem::create_directories(dump_dir);
             std::string dump_path = dump_dir + "/vihealth_" + filename + ".bin";
             std::ofstream f(dump_path, std::ios::binary);
