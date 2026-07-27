@@ -1,14 +1,85 @@
 #include "services/OximetryService.h"
+#include "utils/TimeCompat.h"
 #include <cpapdash/parser/VLDParser.h>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <fstream>
 #include <filesystem>
+#include <chrono>
+#include <cstring>
 
 namespace hms_cpap {
 
 using VLDParser = cpapdash::parser::VLDParser;
+using OximetrySample = cpapdash::parser::OximetrySample;
+using OximetrySession = cpapdash::parser::OximetrySession;
+
+/// Parse a ViHealth cloud binary file (3-byte samples: SpO2, HR, motion).
+/// Header: 10 bytes (version[2] + reserved[6] + sample_size_field[2])
+/// Samples: 3 bytes each (SpO2[1], HR[1], motion[1]) at 1Hz
+/// Returns nullopt if the data doesn't look like a ViHealth cloud file.
+static std::optional<OximetrySession> parseViHealthCloud(
+    const uint8_t* data, size_t size, const std::string& filename) {
+
+    if (size < 13) return std::nullopt;
+
+    // ViHealth cloud files start with version 0x0301 (little-endian 01 03)
+    uint16_t version = static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8);
+    if (version != 0x0301) return std::nullopt;
+
+    const size_t header_size = 10;
+    const size_t sample_size = 3;
+    if (size <= header_size) return std::nullopt;
+
+    size_t data_size = size - header_size;
+    size_t num_samples = data_size / sample_size;
+    if (num_samples == 0) return std::nullopt;
+
+    OximetrySession session;
+    session.filename = filename;
+
+    // Build timestamps from filename (YYYYMMDDHHMMSS) or current time
+    std::chrono::system_clock::time_point start_time;
+    if (filename.size() >= 14) {
+        std::tm tm{};
+        tm.tm_year = std::stoi(filename.substr(0, 4)) - 1900;
+        tm.tm_mon = std::stoi(filename.substr(4, 2)) - 1;
+        tm.tm_mday = std::stoi(filename.substr(6, 2));
+        tm.tm_hour = std::stoi(filename.substr(8, 2));
+        tm.tm_min = std::stoi(filename.substr(10, 2));
+        tm.tm_sec = std::stoi(filename.substr(12, 2));
+        start_time = std::chrono::system_clock::from_time_t(timegm_utc(&tm));
+    } else {
+        start_time = std::chrono::system_clock::now();
+    }
+
+    for (size_t i = 0; i < num_samples; ++i) {
+        size_t offset = header_size + i * sample_size;
+        uint8_t spo2 = data[offset];
+        uint8_t hr = data[offset + 1];
+        uint8_t motion = data[offset + 2];
+
+        OximetrySample sample;
+        sample.timestamp = start_time + std::chrono::seconds(i);
+        bool sp_ok = spo2 > 0 && spo2 <= 100;
+        bool hr_ok = hr > 0 && hr < 255;
+        sample.spo2 = sp_ok ? spo2 : 0xFF;
+        sample.heart_rate = hr_ok ? hr : 0xFF;
+        sample.invalid_flag = sp_ok ? 0 : 1;
+        sample.motion = (motion <= 255) ? motion : 0;
+        sample.vibration = 0;
+        session.samples.push_back(sample);
+    }
+
+    session.sample_interval = 1.0;
+    session.start_time = session.samples.front().timestamp;
+    session.end_time = session.samples.back().timestamp;
+    session.duration_seconds = static_cast<int>(num_samples);
+    session.metrics = VLDParser::calculateMetrics(session.samples, session.sample_interval);
+
+    return session;
+}
 
 OximetryService::OximetryService(std::shared_ptr<IO2RingClient> client,
                                  std::shared_ptr<IDatabase> db)
@@ -62,7 +133,12 @@ bool OximetryService::collectAndPublish() {
                       << " (" << data.size() << " bytes)" << std::endl;
         }
 
+        // Try VLDParser first (for BLE/HTTP mule .vld files), then fall back
+        // to the ViHealth cloud binary format (3-byte samples, 10-byte header)
         auto session = VLDParser::parse(data.data(), data.size(), filename);
+        if (!session) {
+            session = parseViHealthCloud(data.data(), data.size(), filename);
+        }
         if (!session) {
             std::cerr << "O2Ring: Failed to parse " << filename << std::endl;
             continue;
