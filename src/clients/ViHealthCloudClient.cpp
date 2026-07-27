@@ -286,8 +286,23 @@ bool ViHealthCloudClient::login() {
     } catch (...) {
         j = json::value_t::discarded;
     }
-    if (j.is_discarded() || !j.contains("data")) {
+    if (j.is_discarded()) {
         std::cerr << "ViHealth: login response parse error: " << resp << std::endl;
+        return false;
+    }
+
+    // ViHealth API returns business code in JSON body, not HTTP status.
+    // code=200 means success; 809 = wrong credentials; other codes = other errors.
+    int biz_code = j.value("code", 0);
+    if (biz_code != 200) {
+        std::string msg = j.value("msg", "unknown error");
+        std::cerr << "ViHealth: login failed (code=" << biz_code << "): " << msg << std::endl;
+        http_fail_log_.onFailure("login code " + std::to_string(biz_code) + ": " + msg);
+        return false;
+    }
+
+    if (!j.contains("data") || j["data"].is_null()) {
+        std::cerr << "ViHealth: login response has no data: " << resp << std::endl;
         return false;
     }
 
@@ -298,7 +313,13 @@ bool ViHealthCloudClient::login() {
     }
 
     token_ = data["token"].get<std::string>();
-    user_id_ = data["userId"].get<std::string>();
+    // userId can be a string or a number depending on the server response
+    if (data["userId"].is_string())
+        user_id_ = data["userId"].get<std::string>();
+    else if (data["userId"].is_number())
+        user_id_ = std::to_string(data["userId"].get<long long>());
+    else
+        user_id_ = data["userId"].dump();
     if (data.contains("countryCode"))
         country_code_ = data["countryCode"].get<std::string>();
     std::cout << "ViHealth: login successful (userId=" << user_id_
