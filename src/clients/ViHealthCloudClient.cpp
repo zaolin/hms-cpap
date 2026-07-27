@@ -228,27 +228,31 @@ bool ViHealthCloudClient::login() {
         return false;
     }
 
-    // Build request body as a map for signing, then serialize.
+    // Build request body — the app sends only email, password, and timezone
+    // (offset in minutes). No platform/brand/deviceId.
     std::map<std::string, std::string> body;
     body["email"] = cfg_.email;
     body["password"] = cfg_.password;
-    body["platform"] = "1";
-    body["brand"] = "VIATOM";
-    body["deviceId"] = "hms-cpap";
+
+    // Timezone offset in minutes (matches Java: (DST_OFFSET + ZONE_OFFSET) / 1000 / 60)
+    std::time_t now = std::time(nullptr);
+    std::tm* lt = std::localtime(&now);
+    int tz_offset_min = -(lt->tm_gmtoff / 60);  // GMT offset in minutes (negative = east of UTC)
+    body["timezone"] = std::to_string(tz_offset_min);
 
     SignedBody sb = buildSignedBody(body);
 
     // Build URL
     std::string url = cfg_.base_url + "/login/new";
 
-    // Build headers
+    // Build headers — for login (no token), the SignInterceptor sends
+    // timeStamp + sign only (no Authorization header).
     CURL* c = curl_easy_init();
     if (!c) return false;
     std::string resp;
     struct curl_slist* h = nullptr;
     h = curl_slist_append(h, "Accept: application/json");
     h = curl_slist_append(h, "Content-Type: application/json");
-    h = curl_slist_append(h, ("Authorization: " + sb.sign).c_str());  // login uses sign as auth before token
     h = curl_slist_append(h, ("timeStamp: " + sb.timestamp).c_str());
     h = curl_slist_append(h, ("sign: " + sb.sign).c_str());
     h = curl_slist_append(h, "Connection: close");
@@ -271,6 +275,7 @@ bool ViHealthCloudClient::login() {
 
     if (status != 200) {
         std::cerr << "ViHealth: login failed (HTTP " << status << ")" << std::endl;
+        if (!resp.empty()) std::cerr << "ViHealth: login response: " << resp << std::endl;
         http_fail_log_.onFailure("login HTTP " + std::to_string(status));
         return false;
     }
@@ -282,13 +287,13 @@ bool ViHealthCloudClient::login() {
         j = json::value_t::discarded;
     }
     if (j.is_discarded() || !j.contains("data")) {
-        std::cerr << "ViHealth: login response parse error" << std::endl;
+        std::cerr << "ViHealth: login response parse error: " << resp << std::endl;
         return false;
     }
 
     auto& data = j["data"];
     if (!data.contains("token") || !data.contains("userId")) {
-        std::cerr << "ViHealth: login response missing token/userId" << std::endl;
+        std::cerr << "ViHealth: login response missing token/userId: " << resp << std::endl;
         return false;
     }
 
