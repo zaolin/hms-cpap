@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <fstream>
+#include <filesystem>
 
 namespace hms_cpap {
 
@@ -47,6 +49,17 @@ bool OximetryService::collectAndPublish() {
         if (data.empty()) {
             std::cerr << "O2Ring: Failed to download " << filename << std::endl;
             continue;
+        }
+
+        // Debug: dump raw file to /tmp/hms-cpap/ for format inspection
+        {
+            std::string dump_dir = "/tmp/hms-cpap";
+            std::filesystem::create_directories(dump_dir);
+            std::string dump_path = dump_dir + "/vihealth_" + filename + ".bin";
+            std::ofstream f(dump_path, std::ios::binary);
+            f.write(reinterpret_cast<const char*>(data.data()), data.size());
+            std::cout << "O2Ring: Dumped raw file to " << dump_path
+                      << " (" << data.size() << " bytes)" << std::endl;
         }
 
         auto session = VLDParser::parse(data.data(), data.size(), filename);
