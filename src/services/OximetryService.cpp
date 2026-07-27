@@ -133,11 +133,14 @@ bool OximetryService::collectAndPublish() {
                       << " (" << data.size() << " bytes)" << std::endl;
         }
 
-        // Try VLDParser first (for BLE/HTTP mule .vld files), then fall back
-        // to the ViHealth cloud binary format (3-byte samples, 10-byte header)
-        auto session = VLDParser::parse(data.data(), data.size(), filename);
-        if (!session) {
+        // Select parser based on client type:
+        // - Cloud clients (ViHealth) use the ViHealth cloud binary format
+        // - BLE/HTTP mule clients use the VLD format
+        std::optional<OximetrySession> session;
+        if (client_->isCloudClient()) {
             session = parseViHealthCloud(data.data(), data.size(), filename);
+        } else {
+            session = VLDParser::parse(data.data(), data.size(), filename);
         }
         if (!session) {
             std::cerr << "O2Ring: Failed to parse " << filename << std::endl;
