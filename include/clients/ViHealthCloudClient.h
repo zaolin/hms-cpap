@@ -44,6 +44,7 @@ public:
     std::vector<uint8_t> downloadFile(const std::string& filename) override;
     LiveReading getLive() override;
     int getBattery() const override { return cached_battery_; }
+    bool isCloudClient() const override { return true; }
 
 private:
     Config cfg_;

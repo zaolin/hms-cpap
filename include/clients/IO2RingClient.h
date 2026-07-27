@@ -24,6 +24,13 @@ public:
     virtual std::vector<uint8_t> downloadFile(const std::string& filename) = 0;
     virtual LiveReading getLive() = 0;
     virtual int getBattery() const = 0;
+
+    /**
+     * Returns true if this is a cloud-based client (no live stream, no
+     * active→inactive state transition). Cloud clients are polled on a
+     * timer rather than waiting for a device state change.
+     */
+    virtual bool isCloudClient() const { return false; }
 };
 
 } // namespace hms_cpap

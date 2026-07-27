@@ -57,6 +57,14 @@ public:
     virtual bool markSessionCompleted(const std::string& device_id,
                                       const std::chrono::system_clock::time_point& session_start) = 0;
 
+    /// Auto-complete "live" sessions older than max_age_hours.
+    /// In local source mode there is no active→inactive device transition,
+    /// so sessions that age out of discoverLocalSessions' 48h window never
+    /// get markSessionCompleted called. This sweeps them up idempotently.
+    /// @return number of sessions newly completed
+    virtual int autoCompleteStaleSessions(const std::string& device_id,
+                                          int max_age_hours) = 0;
+
     virtual bool reopenSession(const std::string& device_id,
                                const std::chrono::system_clock::time_point& session_start) = 0;
 

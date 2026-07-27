@@ -24,6 +24,7 @@
 #include <sstream>
 #include <fstream>
 #include <filesystem>
+#include <chrono>
 #include <algorithm>
 #include <set>
 
@@ -221,6 +222,8 @@ void BurstCollectorService::initO2Ring() {
                       << std::endl;
         } else {
             client = std::make_shared<ViHealthCloudClient>(vhcfg);
+            cloud_poll_interval_s_ = vhcfg.poll_interval_seconds;
+            last_cloud_poll_ = std::chrono::steady_clock::time_point{};  // force immediate first poll
             std::cout << "O2Ring: Enabled (mode=cloud, ViHealth " << vhcfg.email << ")"
                       << std::endl;
         }
@@ -775,38 +778,60 @@ bool BurstCollectorService::executeBurstCycle() {
         try {
             static bool o2ring_was_active = false;
 
-            auto live = oximetry_service_->pollLive();
-
-            // Always publish to MQTT (active ON/OFF + raw values)
-            if (data_publisher_) {
-                data_publisher_->publishOximetryLive(device_id_, live);
-            }
-
-            // Reachable = mule responded with real data (not a timeout)
-            // Timeout: getLive() returns spo2=0, hr=0, active=false
-            // Inactive but reachable: mule returns spo2=255, active=false
-            bool reachable = (live.spo2 != 0 || live.active);
-
-            if (live.active) {
-                // STATE: Ring on finger — recording
-                auto now = std::chrono::system_clock::now();
-                auto tt = std::chrono::system_clock::to_time_t(now);
-                std::tm tm{}; gmtime_r(&tt, &tm);
-                char date_buf[9];
-                std::strftime(date_buf, sizeof(date_buf), "%Y%m%d", &tm);
-                if (live.valid) {
-                    db_service_->saveLiveOximetrySample("o2ring", date_buf,
-                                                         live.spo2, live.hr, live.motion);
+            // Cloud clients (ViHealth) have no live stream and no
+            // active→inactive transition. Poll listFiles() on a timer
+            // instead of waiting for a device state change.
+            if (oximetry_service_->client()->isCloudClient()) {
+                auto now = std::chrono::steady_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                                   now - last_cloud_poll_).count();
+                if (elapsed >= cloud_poll_interval_s_) {
+                    std::cout << "O2Ring: Cloud poll triggered (interval="
+                              << cloud_poll_interval_s_ << "s)" << std::endl;
+                    oximetry_service_->collectAndPublish();
+                    last_cloud_poll_ = now;
                 }
-                o2ring_was_active = true;
-            } else if (o2ring_was_active && reachable) {
-                // STATE: Session just ended (active→inactive transition)
-                // Ring wrote .vld file — download it now
-                std::cout << "O2Ring: Session ended — checking for new files" << std::endl;
-                oximetry_service_->collectAndPublish();
-                o2ring_was_active = false;
+                // Still publish an "OFF" status so MQTT sensors update
+                IO2RingClient::LiveReading live;
+                live.active = false;
+                live.valid = false;
+                if (data_publisher_) {
+                    data_publisher_->publishOximetryLive(device_id_, live);
+                }
+            } else {
+                auto live = oximetry_service_->pollLive();
+
+                // Always publish to MQTT (active ON/OFF + raw values)
+                if (data_publisher_) {
+                    data_publisher_->publishOximetryLive(device_id_, live);
+                }
+
+                // Reachable = mule responded with real data (not a timeout)
+                // Timeout: getLive() returns spo2=0, hr=0, active=false
+                // Inactive but reachable: mule returns spo2=255, active=false
+                bool reachable = (live.spo2 != 0 || live.active);
+
+                if (live.active) {
+                    // STATE: Ring on finger — recording
+                    auto now = std::chrono::system_clock::now();
+                    auto tt = std::chrono::system_clock::to_time_t(now);
+                    std::tm tm{}; gmtime_r(&tt, &tm);
+                    char date_buf[9];
+                    std::strftime(date_buf, sizeof(date_buf), "%Y%m%d", &tm);
+                    if (live.valid) {
+                        db_service_->saveLiveOximetrySample("o2ring", date_buf,
+                                                             live.spo2, live.hr, live.motion);
+                    }
+                    o2ring_was_active = true;
+                } else if (o2ring_was_active && reachable) {
+                    // STATE: Session just ended (active→inactive transition)
+                    // Ring wrote .vld file — download it now
+                    std::cout << "O2Ring: Session ended — checking for new files" << std::endl;
+                    oximetry_service_->collectAndPublish();
+                    o2ring_was_active = false;
+                }
+                // STATE: Unreachable or was already inactive — no action, wait
             }
-            // STATE: Unreachable or was already inactive — no action, wait
         } catch (const std::exception& e) {
             std::cerr << "O2Ring: Failed (non-fatal): " << e.what() << std::endl;
         }
@@ -921,6 +946,13 @@ bool BurstCollectorService::executeBurstCycle() {
         // idempotent single-transaction upsert of the FULL history — cheap, and
         // self-healing if the mounted directory gains new days.
         processSessionSummary();
+
+        // Auto-complete stale "live" sessions (>48h old). In local mode there
+        // is no active→inactive device transition — sessions that age out of
+        // discoverLocalSessions' 48h window never get markSessionCompleted()
+        // called, so they stay "live" forever in the DB. This sweeps them up
+        // idempotently each cycle.
+        db_service_->autoCompleteStaleSessions(device_id_, 48);
 
         if (new_sessions.empty()) {
             std::cout << "CPAP: No new sessions found locally" << std::endl;
@@ -2151,6 +2183,8 @@ void BurstCollectorService::reloadConfig() {
                               << std::endl;
                 } else {
                     client = std::make_shared<ViHealthCloudClient>(vhcfg);
+                    cloud_poll_interval_s_ = vhcfg.poll_interval_seconds;
+                    last_cloud_poll_ = std::chrono::steady_clock::time_point{};
                     std::cout << "Config reload: O2Ring -> cloud (ViHealth " << vhcfg.email << ")"
                               << std::endl;
                 }

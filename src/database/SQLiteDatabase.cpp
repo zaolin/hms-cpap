@@ -1108,6 +1108,41 @@ bool SQLiteDatabase::markSessionCompleted(const std::string& device_id,
 }
 
 // ---------------------------------------------------------------------------
+// autoCompleteStaleSessions
+// ---------------------------------------------------------------------------
+
+int SQLiteDatabase::autoCompleteStaleSessions(const std::string& device_id,
+                                               int max_age_hours) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!db_) return 0;
+
+    const char* sql = R"(
+        UPDATE cpap_sessions
+        SET session_end = datetime(session_start, '+8 hours'),
+            updated_at = datetime('now')
+        WHERE device_id = ?
+          AND session_end IS NULL
+          AND session_start < datetime('now', ? )
+    )";
+
+    std::string age_mod = "-" + std::to_string(max_age_hours) + " hours";
+
+    StmtGuard g;
+    sqlite3_prepare_v2(db_, sql, -1, &g.stmt, nullptr);
+    bind_text(g.stmt, 1, device_id);
+    bind_text(g.stmt, 2, age_mod);
+
+    sqlite3_step(g.stmt);
+    int changes = sqlite3_changes(db_);
+
+    if (changes > 0) {
+        std::cout << "SQLite: Auto-completed " << changes << " stale session(s) older than "
+                  << max_age_hours << "h" << std::endl;
+    }
+    return changes;
+}
+
+// ---------------------------------------------------------------------------
 // reopenSession
 // ---------------------------------------------------------------------------
 

@@ -50,6 +50,12 @@ public:
     bool markSessionCompleted(const std::string& device_id,
                               const std::chrono::system_clock::time_point& session_start) override;
 
+    int autoCompleteStaleSessions(const std::string& device_id,
+                                  int max_age_hours) override {
+        if (db_) return db_->autoCompleteStaleSessions(device_id, max_age_hours);
+        return 0;
+    }
+
     bool reopenSession(const std::string& device_id,
                        const std::chrono::system_clock::time_point& session_start) override;
 

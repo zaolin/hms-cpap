@@ -35,6 +35,9 @@ public:
     /** Get last live reading (from most recent pollLive call). */
     const IO2RingClient::LiveReading& getLastLive() const { return last_live_; }
 
+    /** Underlying client (for isCloudClient() checks by the orchestrator). */
+    std::shared_ptr<IO2RingClient> client() const { return client_; }
+
 private:
     std::shared_ptr<IO2RingClient> client_;
     std::shared_ptr<IDatabase> db_;

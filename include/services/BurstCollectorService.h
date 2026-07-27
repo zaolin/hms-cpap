@@ -180,6 +180,10 @@ public:
     OximetryService* getOximetryService() const { return oximetry_service_.get(); }
 private:
     std::unique_ptr<OximetryService> oximetry_service_;
+    // Cloud clients (ViHealth) have no live stream — they're polled on a
+    // timer instead of waiting for an active→inactive device transition.
+    std::chrono::steady_clock::time_point last_cloud_poll_;
+    int cloud_poll_interval_s_ = 600;  // updated from config on init
 
     // Worker thread
     std::thread worker_thread_;

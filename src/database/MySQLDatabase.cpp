@@ -1353,6 +1353,43 @@ bool MySQLDatabase::markSessionCompleted(const std::string& device_id,
 }
 
 // ---------------------------------------------------------------------------
+// autoCompleteStaleSessions
+// ---------------------------------------------------------------------------
+
+int MySQLDatabase::autoCompleteStaleSessions(const std::string& device_id,
+                                              int max_age_hours) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!conn_) return 0;
+
+    const char* sql = R"(
+        UPDATE cpap_sessions
+        SET session_end = DATE_ADD(session_start, INTERVAL 8 HOUR),
+            updated_at = NOW()
+        WHERE device_id = ?
+          AND session_end IS NULL
+          AND session_start < DATE_SUB(NOW(), INTERVAL ? HOUR)
+    )";
+
+    MysqlStmtGuard g;
+    g.stmt = mysql_stmt_init(conn_);
+    mysql_stmt_prepare(g.stmt, sql, std::strlen(sql));
+
+    ParamBinder p(2);
+    p.bindText(0, device_id);
+    p.bindInt(1, max_age_hours);
+    mysql_stmt_bind_param(g.stmt, p.data());
+    mysql_stmt_execute(g.stmt);
+
+    my_ulonglong changes = mysql_stmt_affected_rows(g.stmt);
+
+    if (changes > 0) {
+        std::cout << "MySQL: Auto-completed " << changes << " stale session(s) older than "
+                  << max_age_hours << "h" << std::endl;
+    }
+    return (int)changes;
+}
+
+// ---------------------------------------------------------------------------
 // reopenSession
 // ---------------------------------------------------------------------------
 

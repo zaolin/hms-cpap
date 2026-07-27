@@ -1178,6 +1178,48 @@ bool DatabaseService::markSessionCompleted(
     }
 }
 
+int DatabaseService::autoCompleteStaleSessions(const std::string& device_id,
+                                               int max_age_hours) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    if (!ensureConnection()) {
+        std::cerr << "DB: autoCompleteStaleSessions failed - no connection" << std::endl;
+        return 0;
+    }
+
+    try {
+        pqxx::work txn(*conn_);
+
+        // Mark "live" sessions (session_end IS NULL) older than max_age_hours
+        // as completed. Set session_end to session_start + 8h as a reasonable
+        // default (typical CPAP session duration); the exact end time from the
+        // EDF data is not recoverable after the fact, but the session is
+        // already fully parsed and stored — this just flips the status flag.
+        std::string query = R"(
+            UPDATE cpap_sessions
+            SET session_end = session_start + INTERVAL '8 hours',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE device_id = $1
+              AND session_end IS NULL
+              AND session_start < CURRENT_TIMESTAMP - ($2 || ' hours')::INTERVAL
+        )";
+
+        auto result = txn.exec_params(query, device_id, std::to_string(max_age_hours));
+        txn.commit();
+
+        int count = result.affected_rows();
+        if (count > 0) {
+            std::cout << "✅ DB: Auto-completed " << count << " stale session(s) older than "
+                      << max_age_hours << "h" << std::endl;
+        }
+        return count;
+
+    } catch (const std::exception& e) {
+        std::cerr << "DB: autoCompleteStaleSessions error: " << e.what() << std::endl;
+        return 0;
+    }
+}
+
 bool DatabaseService::reopenSession(
     const std::string& device_id,
     const std::chrono::system_clock::time_point& session_start) {
