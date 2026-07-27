@@ -482,10 +482,31 @@ std::vector<std::string> ViHealthCloudClient::listFiles() {
         if (records.empty()) break;
 
         for (const auto& rec : records) {
-            std::string data_tag = rec.value("id", "");
-            std::string file_url = rec.value("originalFileUrl", "");
-            std::string filename = rec.value("fileName", data_tag);
-            long long measure_time = rec.value("measureTime", 0LL);
+            // id can be a number or string — extract safely
+            std::string data_tag;
+            if (rec.contains("id")) {
+                if (rec["id"].is_string()) data_tag = rec["id"].get<std::string>();
+                else if (rec["id"].is_number()) data_tag = std::to_string(rec["id"].get<long long>());
+                else data_tag = rec["id"].dump();
+            }
+
+            std::string file_url;
+            if (rec.contains("originalFileUrl") && rec["originalFileUrl"].is_string())
+                file_url = rec["originalFileUrl"].get<std::string>();
+
+            std::string filename;
+            if (rec.contains("fileName") && rec["fileName"].is_string())
+                filename = rec["fileName"].get<std::string>();
+            else
+                filename = data_tag;  // fallback
+
+            long long measure_time = 0;
+            if (rec.contains("measureTime")) {
+                if (rec["measureTime"].is_number())
+                    measure_time = rec["measureTime"].get<long long>();
+                else if (rec["measureTime"].is_string())
+                    measure_time = std::stoll(rec["measureTime"].get<std::string>());
+            }
 
             if (data_tag.empty()) continue;
 
