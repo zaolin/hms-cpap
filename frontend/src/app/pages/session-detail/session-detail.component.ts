@@ -108,6 +108,9 @@ const SIGNAL_DEFS: SignalDef[] = [
             </span>
           </h3>
           <div class="detail-controls">
+            <button class="reset-btn" (click)="exportCsv()">
+              <i class="fa-solid fa-file-csv"></i> CSV
+            </button>
             <div class="range-buttons">
               <button *ngFor="let r of rangeOptions" [class.active]="activeRange === r.value"
                 (click)="setRange(r.value)">{{ r.label }}</button>
@@ -507,6 +510,10 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   resetZoom() {
     this.activeRange = 'all';
     this.renderDetailChart();
+  }
+
+  exportCsv() {
+    window.open(`/api/sessions/${this.date}/export/csv`, '_blank');
   }
 
   prevDay() {

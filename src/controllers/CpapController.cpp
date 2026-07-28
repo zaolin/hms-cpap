@@ -216,6 +216,128 @@ void CpapController::rollingAhi(const drogon::HttpRequestPtr& req,
     }
 }
 
+void CpapController::exportSessionCsv(const drogon::HttpRequestPtr&,
+                                       std::function<void(const drogon::HttpResponsePtr&)>&& cb,
+                                       const std::string& date) {
+    try {
+        auto signals = qs_->getSessionSignals(date);
+        auto events = qs_->getSessionEvents(date);
+
+        std::ostringstream ss;
+        // Header
+        ss << "timestamp,flow_avg,flow_min,flow_max,pressure_avg,pressure_min,pressure_max,"
+           << "mask_pressure,leak_rate,flow_limitation,snore_index,"
+           << "respiratory_rate,tidal_volume,minute_ventilation,ie_ratio,"
+           << "epr_pressure,target_ventilation\n";
+
+        auto timestamps = signals.get("timestamps", Json::arrayValue);
+        auto get = [&](const char* key, int i) -> std::string {
+            auto arr = signals.get(key, Json::arrayValue);
+            if (i < static_cast<int>(arr.size()) && !arr[i].isNull())
+                return arr[i].asString();
+            return "";
+        };
+
+        for (int i = 0; i < static_cast<int>(timestamps.size()); ++i) {
+            ss << (timestamps[i].isNull() ? "" : timestamps[i].asString()) << ","
+               << get("flow_avg", i) << ","
+               << get("flow_min", i) << ","
+               << get("flow_max", i) << ","
+               << get("pressure_avg", i) << ","
+               << get("pressure_min", i) << ","
+               << get("pressure_max", i) << ","
+               << get("mask_pressure", i) << ","
+               << get("leak_rate", i) << ","
+               << get("flow_limitation", i) << ","
+               << get("snore_index", i) << ","
+               << get("respiratory_rate", i) << ","
+               << get("tidal_volume", i) << ","
+               << get("minute_ventilation", i) << ","
+               << get("ie_ratio", i) << ","
+               << get("epr_pressure", i) << ","
+               << get("target_ventilation", i) << "\n";
+        }
+
+        // Events section
+        ss << "\n\nEvents:\ntype,timestamp,duration_seconds,details\n";
+        for (const auto& e : events) {
+            ss << e.get("event_type", "").asString() << ","
+               << e.get("event_timestamp", "").asString() << ","
+               << e.get("duration_seconds", "").asString() << ","
+               << e.get("details", "").asString() << "\n";
+        }
+
+        auto resp = drogon::HttpResponse::newHttpResponse();
+        resp->setBody(ss.str());
+        resp->setContentTypeString("text/csv");
+        resp->addHeader("Content-Disposition",
+                        "attachment; filename=\"session_" + date + ".csv\"");
+        cb(resp);
+    } catch (const std::exception& e) {
+        cb(jsonError(e.what(), drogon::k500InternalServerError));
+    }
+}
+
+void CpapController::exportSummaryCsv(const drogon::HttpRequestPtr& req,
+                                       std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
+    std::string start = req->getParameter("start");
+    std::string end = req->getParameter("end");
+    if (start.empty()) start = "2000-01-01";
+    if (end.empty()) end = "2099-12-31";
+
+    try {
+        auto rows = qs_->getDailySummary(start, end);
+
+        std::ostringstream ss;
+        ss << "date,duration_minutes,ahi,ai,hi,oai,cai,uai,rin,csr,"
+           << "mask_press_50,mask_press_95,mask_press_max,"
+           << "leak_50,leak_95,leak_max,"
+           << "spo2_50,spo2_95,"
+           << "resp_rate_50,tid_vol_50,min_vent_50,"
+           << "mode,epr_level,pressure_setting,compliance_pct\n";
+
+        for (const auto& r : rows) {
+            auto g = [&](const char* k) -> std::string {
+                if (!r.isMember(k) || r[k].isNull()) return "";
+                return r[k].asString();
+            };
+            ss << g("record_date") << ","
+               << g("duration_minutes") << ","
+               << g("ahi") << ","
+               << g("ai") << ","
+               << g("hi") << ","
+               << g("oai") << ","
+               << g("cai") << ","
+               << g("uai") << ","
+               << g("rin") << ","
+               << g("csr") << ","
+               << g("mask_press_50") << ","
+               << g("mask_press_95") << ","
+               << g("mask_press_max") << ","
+               << g("leak_50") << ","
+               << g("leak_95") << ","
+               << g("leak_max") << ","
+               << g("spo2_50") << ","
+               << g("spo2_95") << ","
+               << g("resp_rate_50") << ","
+               << g("tid_vol_50") << ","
+               << g("min_vent_50") << ","
+               << g("mode") << ","
+               << g("epr_level") << ","
+               << g("pressure_setting") << ","
+               << g("compliance_pct") << "\n";
+        }
+
+        auto resp = drogon::HttpResponse::newHttpResponse();
+        resp->setBody(ss.str());
+        resp->setContentTypeString("text/csv");
+        resp->addHeader("Content-Disposition", "attachment; filename=\"daily_summary.csv\"");
+        cb(resp);
+    } catch (const std::exception& e) {
+        cb(jsonError(e.what(), drogon::k500InternalServerError));
+    }
+}
+
 void CpapController::realtime(const drogon::HttpRequestPtr&,
                                std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
     Json::Value result;

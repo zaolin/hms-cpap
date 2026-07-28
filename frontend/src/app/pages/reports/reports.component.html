@@ -17,6 +17,10 @@
         <i class="fa-solid fa-circle-notch fa-spin" *ngIf="generating"></i>
         {{ generating ? 'Generating...' : 'Generate PDF' }}
       </button>
+      <button class="generate-btn" (click)="exportSummaryCsv()" [disabled]="!startDate || !endDate">
+        <i class="fa-solid fa-file-csv"></i>
+        Export CSV
+      </button>
     </div>
     <div class="error-msg" *ngIf="generateError">{{ generateError }}</div>
   </div>

@@ -73,6 +73,10 @@ export class ReportsComponent implements OnInit, OnDestroy {
     setTimeout(() => delete this.downloading[report.id], 2000);
   }
 
+  exportSummaryCsv() {
+    window.open(`/api/export/summary.csv?start=${this.startDate}&end=${this.endDate}`, '_blank');
+  }
+
   statusLabel(s: string): string {
     return { pending: 'Queued', generating: 'Generating...', ready: 'Ready', error: 'Error' }[s] ?? s;
   }
