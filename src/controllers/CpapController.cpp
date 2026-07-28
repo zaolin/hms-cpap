@@ -1162,6 +1162,56 @@ void CpapController::downloadReport(const drogon::HttpRequestPtr&,
 
 #endif // _WIN32
 
+void CpapController::getJournal(const drogon::HttpRequestPtr&,
+                                 std::function<void(const drogon::HttpResponsePtr&)>&& cb,
+                                 const std::string& date) {
+    if (!config_) { cb(jsonError("Not initialized", drogon::k500InternalServerError)); return; }
+    auto db = qs_->getDb();
+    if (!db) { cb(jsonError("DB not available", drogon::k500InternalServerError)); return; }
+    std::string dev = config_->device_id;
+    try {
+        auto rows = db->executeQuery(
+            "SELECT content, updated_at FROM journal_entries"
+            " WHERE device_id = $1 AND sleep_day = $2",
+            {dev, date});
+        Json::Value result;
+        if (!rows.empty()) {
+            result["content"] = rows[0].get("content", "");
+            result["updated_at"] = rows[0].get("updated_at", "");
+        } else {
+            result["content"] = "";
+        }
+        cb(jsonResp(result));
+    } catch (const std::exception& e) {
+        cb(jsonError(e.what(), drogon::k500InternalServerError));
+    }
+}
+
+void CpapController::saveJournal(const drogon::HttpRequestPtr& req,
+                                  std::function<void(const drogon::HttpResponsePtr&)>&& cb,
+                                  const std::string& date) {
+    if (!config_) { cb(jsonError("Not initialized", drogon::k500InternalServerError)); return; }
+    auto db = qs_->getDb();
+    if (!db) { cb(jsonError("DB not available", drogon::k500InternalServerError)); return; }
+    std::string dev = config_->device_id;
+    auto body = req->getJsonObject();
+    if (!body) { cb(jsonError("Invalid JSON body", drogon::k400BadRequest)); return; }
+    std::string content = body->get("content", "").asString();
+    try {
+        db->executeQuery(
+            "INSERT INTO journal_entries (device_id, sleep_day, content, created_at, updated_at)"
+            " VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            " ON CONFLICT (device_id, sleep_day)"
+            " DO UPDATE SET content = $3, updated_at = CURRENT_TIMESTAMP",
+            {dev, date, content});
+        Json::Value result;
+        result["status"] = "ok";
+        cb(jsonResp(result));
+    } catch (const std::exception& e) {
+        cb(jsonError(e.what(), drogon::k500InternalServerError));
+    }
+}
+
 } // namespace hms_cpap
 
 #endif // BUILD_WITH_WEB

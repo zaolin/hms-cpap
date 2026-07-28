@@ -74,6 +74,14 @@ export class CpapApiService {
     return this.http.get<any>(`/api/sessions/${date}/rolling-ahi`, { params });
   }
 
+  getJournal(date: string): Observable<{ content: string; updated_at?: string }> {
+    return this.http.get<any>(`/api/sessions/${date}/journal`);
+  }
+
+  saveJournal(date: string, content: string): Observable<any> {
+    return this.http.put<any>(`/api/sessions/${date}/journal`, { content });
+  }
+
   testEzshare(url: string): Observable<{ status: string; url: string }> {
     return this.http.get<{ status: string; url: string }>(
       `/api/config/test-ezshare?url=${encodeURIComponent(url)}`

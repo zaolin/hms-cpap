@@ -237,10 +237,30 @@ bool DatabaseService::connect() {
                     ON CONFLICT (type_key) DO NOTHING
                 )");
                 txn.commit();
-                std::cout << "  DB: SDD-004 migration (equipment tables) applied" << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "DB: SDD-004 equipment migration failed: " << e.what() << std::endl;
-            }
+                 std::cout << "  DB: SDD-004 migration (equipment tables) applied" << std::endl;
+             } catch (const std::exception& e) {
+                 std::cerr << "DB: SDD-004 equipment migration failed: " << e.what() << std::endl;
+             }
+
+             // Auto-migrate v2.3.0: journal entries
+             try {
+                 pqxx::work txn2(*conn_);
+                 txn2.exec(R"(
+                     CREATE TABLE IF NOT EXISTS journal_entries (
+                         id SERIAL PRIMARY KEY,
+                         device_id TEXT NOT NULL,
+                         sleep_day DATE NOT NULL,
+                         content TEXT DEFAULT '',
+                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                         UNIQUE(device_id, sleep_day)
+                     )
+                 )");
+                 txn2.commit();
+                 std::cout << "  DB: v2.3.0 migration (journal entries) applied" << std::endl;
+             } catch (const std::exception& e) {
+                 std::cerr << "DB: v2.3.0 journal migration failed: " << e.what() << std::endl;
+             }
 
             return true;
         }

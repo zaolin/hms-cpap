@@ -33,6 +33,8 @@ public:
     ADD_METHOD_TO(CpapController::rollingAhi,      "/api/sessions/{date}/rolling-ahi", drogon::Get);
     ADD_METHOD_TO(CpapController::exportSessionCsv, "/api/sessions/{date}/export/csv", drogon::Get);
     ADD_METHOD_TO(CpapController::exportSummaryCsv, "/api/export/summary.csv", drogon::Get);
+    ADD_METHOD_TO(CpapController::getJournal,       "/api/sessions/{date}/journal", drogon::Get);
+    ADD_METHOD_TO(CpapController::saveJournal,      "/api/sessions/{date}/journal", drogon::Put);
     ADD_METHOD_TO(CpapController::realtime,      "/api/realtime",            drogon::Get);
     ADD_METHOD_TO(CpapController::getConfig,     "/api/config",              drogon::Get);
     ADD_METHOD_TO(CpapController::updateConfig,  "/api/config",              drogon::Put);
@@ -106,6 +108,12 @@ public:
                            const std::string& date);
     void exportSummaryCsv(const drogon::HttpRequestPtr& req,
                            std::function<void(const drogon::HttpResponsePtr&)>&& cb);
+    void getJournal(const drogon::HttpRequestPtr& req,
+                     std::function<void(const drogon::HttpResponsePtr&)>&& cb,
+                     const std::string& date);
+    void saveJournal(const drogon::HttpRequestPtr& req,
+                      std::function<void(const drogon::HttpResponsePtr&)>&& cb,
+                      const std::string& date);
 
     void realtime(const drogon::HttpRequestPtr& req,
                   std::function<void(const drogon::HttpResponsePtr&)>&& cb);

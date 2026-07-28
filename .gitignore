@@ -93,3 +93,4 @@ coverage/
 # Local Claude Code guidance (kept out of the public repo)
 CLAUDE.md
 graphify-out/
+oscar_example/

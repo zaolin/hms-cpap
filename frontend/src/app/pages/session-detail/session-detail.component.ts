@@ -52,6 +52,9 @@ const SIGNAL_DEFS: SignalDef[] = [
   { key: 'rolling_ahi', title: 'Rolling AHI', unit: 'events/h', color: '#ff5252', source: 'rolling-ahi', fill: true, yMin: 0 },
 ];
 
+// Journal
+interface JournalEntry { content: string; updated_at?: string; }
+
 @Component({
   selector: 'app-session-detail',
   standalone: true,
@@ -165,6 +168,19 @@ const SIGNAL_DEFS: SignalDef[] = [
       <div class="loading" *ngIf="loadError">
         <p>{{ loadError }}</p>
       </div>
+
+      <!-- Journal -->
+      <div class="journal-section">
+        <h3>Journal Note</h3>
+        <textarea class="journal-text" [(ngModel)]="journalContent" placeholder="Add a note about this session..."
+          rows="3"></textarea>
+        <div class="journal-actions">
+          <button class="journal-save" (click)="saveJournal()" [disabled]="journalSaving">
+            {{ journalSaving ? 'Saving...' : 'Save Note' }}
+          </button>
+          <span class="journal-saved" *ngIf="journalSavedAt">Saved {{ journalSavedAt }}</span>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -216,6 +232,15 @@ const SIGNAL_DEFS: SignalDef[] = [
 
     /* Doughnut */
     .doughnut-section { margin-top: 0.75rem; }
+    .journal-section { margin-top: 1rem; background: #1e1e2f; border-radius: 8px; padding: 0.75rem; }
+    .journal-section h3 { margin: 0 0 0.5rem; }
+    .journal-text { width: 100%; background: #2a2a3a; border: 1px solid #444; color: #e0e0e0;
+      border-radius: 6px; padding: 0.5rem; font-size: 0.85rem; resize: vertical; box-sizing: border-box; }
+    .journal-actions { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.4rem; }
+    .journal-save { background: #3a5a8a; border: 1px solid #5588cc; color: #fff; padding: 0.3rem 0.8rem;
+      border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    .journal-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .journal-saved { font-size: 0.7rem; color: #4ade80; }
     .doughnut-container { max-width: 300px; margin: 0 auto; }
 
     /* Live banner */
@@ -267,6 +292,11 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   private vitalsData: VitalsData | null = null;
   private oximetryData: OximetryData | null = null;
   private rollingAhiData: { timestamps: string[]; rolling_ahi: number[] } | null = null;
+
+  // Journal
+  journalContent = '';
+  journalSaving = false;
+  journalSavedAt = '';
   private events: SessionEvent[] = [];
 
   // Labels
@@ -487,6 +517,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
     this.selectedSignal = sig;
     this.activeRange = 'all';
     setTimeout(() => this.renderDetailChart(), 50);
+    this.loadJournal();
   }
 
   setRange(range: number | 'all') {
@@ -514,6 +545,24 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
 
   exportCsv() {
     window.open(`/api/sessions/${this.date}/export/csv`, '_blank');
+  }
+
+  loadJournal() {
+    this.api.getJournal(this.date).subscribe({
+      next: (j) => { this.journalContent = j.content || ''; this.journalSavedAt = j.updated_at || ''; },
+      error: () => {},
+    });
+  }
+
+  saveJournal() {
+    this.journalSaving = true;
+    this.api.saveJournal(this.date, this.journalContent).subscribe({
+      next: () => {
+        this.journalSaving = false;
+        this.journalSavedAt = new Date().toLocaleTimeString();
+      },
+      error: () => { this.journalSaving = false; },
+    });
   }
 
   prevDay() {
