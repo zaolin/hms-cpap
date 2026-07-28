@@ -69,6 +69,11 @@ export class CpapApiService {
     return this.http.get<SessionEvent[]>(`/api/sessions/${date}/events`);
   }
 
+  getRollingAhi(date: string, window = 60): Observable<{ timestamps: string[]; rolling_ahi: number[]; window_minutes: number }> {
+    const params = new HttpParams().set('window', window);
+    return this.http.get<any>(`/api/sessions/${date}/rolling-ahi`, { params });
+  }
+
   testEzshare(url: string): Observable<{ status: string; url: string }> {
     return this.http.get<{ status: string; url: string }>(
       `/api/config/test-ezshare?url=${encodeURIComponent(url)}`

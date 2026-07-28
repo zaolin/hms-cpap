@@ -1,8 +1,10 @@
 #include "web/QueryService.h"
 #include "services/InsightsEngine.h"
+#include "utils/TimeCompat.h"
 #include <sstream>
 #include <algorithm>
 #include <ctime>
+#include <cmath>
 #include <iostream>
 
 namespace hms_cpap {
@@ -510,6 +512,117 @@ Json::Value QueryService::getSessionOximetry(const std::string& date, int interv
     result["spo2"] = spo2;
     result["heart_rate"] = heart_rate;
     result["motion"] = motion;
+    return result;
+}
+
+Json::Value QueryService::getRollingAhi(const std::string& date, int window_minutes) {
+    if (window_minutes < 1) window_minutes = 60;
+
+    // Fetch all apnea/hypopnea/RERA events for this session
+    std::string q =
+        "SELECT e.event_type, e.event_timestamp, e.duration_seconds"
+        " FROM cpap_sessions s"
+        " JOIN cpap_events e ON e.session_id = s.id"
+        " WHERE s.device_id = " + sql::param(1, dt_) +
+        " AND " + sql::sleepDay("s.session_start", dt_) + " = " + sql::castDate(2, dt_) +
+        " AND e.event_type IN ('OA', 'CA', 'H', 'RERA', 'UA', 'FL')"
+        " ORDER BY e.event_timestamp";
+
+    auto rows = db_->executeQuery(q, {device_id_, date});
+    if (rows.empty()) {
+        Json::Value result;
+        result["timestamps"] = Json::arrayValue;
+        result["rolling_ahi"] = Json::arrayValue;
+        result["window_minutes"] = window_minutes;
+        return result;
+    }
+
+    // Parse event timestamps into epoch seconds
+    struct EventPoint {
+        double epoch;
+        std::string type;
+    };
+    std::vector<EventPoint> events;
+    for (const auto& r : rows) {
+        std::string ts = r.get("event_timestamp", "").asString();
+        std::string type = r.get("event_type", "").asString();
+        // Parse ISO timestamp to epoch
+        // PostgreSQL returns "2026-07-21 01:23:45" or "2026-07-21T01:23:45"
+        // SQLite returns "2026-07-21 01:23:45"
+        std::tm tm{};
+        if (sscanf(ts.c_str(), "%d-%d-%d %d:%d:%d",
+                   &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+                   &tm.tm_hour, &tm.tm_min, &tm.tm_sec) >= 6 ||
+            sscanf(ts.c_str(), "%d-%d-%dT%d:%d:%d",
+                   &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+                   &tm.tm_hour, &tm.tm_min, &tm.tm_sec) >= 6) {
+            tm.tm_year -= 1900;
+            tm.tm_mon -= 1;
+            double epoch = static_cast<double>(timegm_utc(&tm));
+            events.push_back({epoch, type});
+        }
+    }
+
+    if (events.empty()) {
+        Json::Value result;
+        result["timestamps"] = Json::arrayValue;
+        result["rolling_ahi"] = Json::arrayValue;
+        result["window_minutes"] = window_minutes;
+        return result;
+    }
+
+    // Compute rolling AHI at 1-minute intervals
+    // For each minute t, count events in [t - window, t] and divide by (window/60)
+    double window_seconds = window_minutes * 60.0;
+    double start_epoch = events.front().epoch;
+    double end_epoch = events.back().epoch;
+
+    // Align to minute boundaries
+    double start_min = std::floor(start_epoch / 60.0) * 60.0;
+    double end_min = std::ceil(end_epoch / 60.0) * 60.0;
+
+    Json::Value timestamps(Json::arrayValue);
+    Json::Value rolling_ahi(Json::arrayValue);
+
+    size_t event_idx = 0;
+    for (double t = start_min; t <= end_min; t += 60.0) {
+        double window_start = t - window_seconds;
+
+        // Count events in the window [window_start, t]
+        int count = 0;
+        for (size_t i = event_idx; i < events.size(); ++i) {
+            if (events[i].epoch > t) break;
+            if (events[i].epoch >= window_start) count++;
+        }
+        // Also check earlier events that might still be in the window
+        // (event_idx may have skipped past window_start)
+        for (int i = static_cast<int>(event_idx) - 1; i >= 0; --i) {
+            if (events[i].epoch < window_start) break;
+            count++;
+        }
+
+        // Advance event_idx past current minute
+        while (event_idx < events.size() && events[event_idx].epoch <= t) {
+            event_idx++;
+        }
+
+        double ahi = (count / (window_minutes / 60.0));
+
+        // Format timestamp back to ISO
+        std::time_t tt = static_cast<std::time_t>(t);
+        std::tm tm{};
+        gmtime_r(&tt, &tm);
+        char buf[32];
+        std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", &tm);
+
+        timestamps.append(std::string(buf));
+        rolling_ahi.append(std::round(ahi * 100.0) / 100.0);
+    }
+
+    Json::Value result;
+    result["timestamps"] = timestamps;
+    result["rolling_ahi"] = rolling_ahi;
+    result["window_minutes"] = window_minutes;
     return result;
 }
 

@@ -24,6 +24,7 @@ public:
     Json::Value getSessionEvents(const std::string& date);
     Json::Value getSessionBreaths(const std::string& date);
     Json::Value getSessionOximetry(const std::string& date, int interval);
+    Json::Value getRollingAhi(const std::string& date, int window_minutes = 60);
 
     /// Access the underlying database (for ad-hoc queries by controller endpoints).
     std::shared_ptr<IDatabase> getDb() const { return db_; }

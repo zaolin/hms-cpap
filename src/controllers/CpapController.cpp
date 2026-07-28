@@ -204,6 +204,18 @@ void CpapController::sessionOximetry(const drogon::HttpRequestPtr& req,
     }
 }
 
+void CpapController::rollingAhi(const drogon::HttpRequestPtr& req,
+                                 std::function<void(const drogon::HttpResponsePtr&)>&& cb,
+                                 const std::string& date) {
+    int window = 60;
+    if (auto p = req->getOptionalParameter<int>("window")) window = *p;
+    try {
+        cb(jsonResp(qs_->getRollingAhi(date, window)));
+    } catch (const std::exception& e) {
+        cb(jsonError(e.what(), drogon::k500InternalServerError));
+    }
+}
+
 void CpapController::realtime(const drogon::HttpRequestPtr&,
                                std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
     Json::Value result;

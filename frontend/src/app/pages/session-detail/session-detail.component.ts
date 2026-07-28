@@ -27,7 +27,7 @@ interface SignalDef {
   bandMaxKey?: string;
   showEvents?: boolean;    // overlay event markers
   desat?: boolean;         // overlay SpO2 desaturation spans + ODI
-  source: 'signals' | 'vitals' | 'oximetry';
+  source: 'signals' | 'vitals' | 'oximetry' | 'rolling-ahi';
   fill?: boolean;
   minMode?: number;        // only show if therapy_mode >= this (e.g., 1=not CPAP, 7=ASV only)
 }
@@ -49,6 +49,7 @@ const SIGNAL_DEFS: SignalDef[] = [
   { key: 'heart_rate', title: 'Heart Rate', unit: 'bpm', color: '#f06292', hasBand: true, bandMinKey: 'hr_min', bandMaxKey: 'hr_max', source: 'vitals' },
   { key: 'spo2', title: 'O2Ring SpO2', unit: '%', color: '#ef5350', yMin: 85, yMax: 100, source: 'oximetry', desat: true },
   { key: 'heart_rate', title: 'O2Ring Heart Rate', unit: 'bpm', color: '#ec407a', source: 'oximetry' },
+  { key: 'rolling_ahi', title: 'Rolling AHI', unit: 'events/h', color: '#ff5252', source: 'rolling-ahi', fill: true, yMin: 0 },
 ];
 
 @Component({
@@ -262,6 +263,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   private signalData: SignalData | null = null;
   private vitalsData: VitalsData | null = null;
   private oximetryData: OximetryData | null = null;
+  private rollingAhiData: { timestamps: string[]; rolling_ahi: number[] } | null = null;
   private events: SessionEvent[] = [];
 
   // Labels
@@ -399,8 +401,9 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       signals: this.api.getSessionSignals(this.date).pipe(catchError(() => of(null))),
       vitals: this.api.getSessionVitals(this.date).pipe(catchError(() => of(null))),
       oximetry: this.api.getSessionOximetry(this.date).pipe(catchError(() => of(null))),
+      rollingAhi: this.api.getRollingAhi(this.date).pipe(catchError(() => of(null))),
       events: this.api.getSessionEvents(this.date).pipe(catchError(() => of([]))),
-    }).subscribe(({ detail, signals, vitals, oximetry, events }) => {
+    }).subscribe(({ detail, signals, vitals, oximetry, rollingAhi, events }) => {
       // Merge all sessions for the night into one combined view
       if (detail.length > 0) {
         this.session = this.mergeSessions(detail);
@@ -422,6 +425,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       this.signalData = signals;
       this.vitalsData = vitals;
       this.oximetryData = oximetry;
+      this.rollingAhiData = rollingAhi;
       this.events = events as SessionEvent[];
 
       if (signals?.timestamps?.length) {
@@ -442,6 +446,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       const machineSpo2 = ((vitals as any)?.spo2 || []).some((v: any) => Number(v) > 0 && Number(v) <= 100);
       this.availableSignals = SIGNAL_DEFS.filter(s => {
         if (s.source === 'oximetry') return oximetry?.timestamps?.length;
+        if (s.source === 'rolling-ahi') return rollingAhi?.timestamps?.length;
         if (s.source === 'vitals') {
           // Machine SpO2 only if the EDF actually carried it; otherwise fall
           // back to the O2Ring SpO2 chart (which keeps its own desat overlay).
@@ -534,12 +539,14 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       signals: this.api.getSessionSignals(this.date).pipe(catchError(() => of(null))),
       vitals: this.api.getSessionVitals(this.date).pipe(catchError(() => of(null))),
       oximetry: this.api.getSessionOximetry(this.date).pipe(catchError(() => of(null))),
+      rollingAhi: this.api.getRollingAhi(this.date).pipe(catchError(() => of(null))),
       events: this.api.getSessionEvents(this.date).pipe(catchError(() => of([]))),
-    }).subscribe(({ detail, signals, vitals, oximetry, events }) => {
+    }).subscribe(({ detail, signals, vitals, oximetry, rollingAhi, events }) => {
       if (detail.length > 0) this.session = this.mergeSessions(detail);
       this.signalData = signals;
       this.vitalsData = vitals;
       this.oximetryData = oximetry;
+      this.rollingAhiData = rollingAhi;
       this.events = events as SessionEvent[];
 
       if (signals?.timestamps?.length) {
@@ -598,6 +605,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   private getTimestamps(): string[] {
     if (!this.selectedSignal) return [];
     if (this.selectedSignal.source === 'oximetry') return this.oximetryTimestamps;
+    if (this.selectedSignal.source === 'rolling-ahi') return this.rollingAhiData?.timestamps || [];
     return this.selectedSignal.source === 'vitals' ? this.vitalsTimestamps : this.signalTimestamps;
   }
 
@@ -610,6 +618,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
   private getData(key: string): (number | null)[] {
     if (!this.selectedSignal) return [];
     const src = this.selectedSignal.source === 'oximetry' ? this.oximetryData
+      : this.selectedSignal.source === 'rolling-ahi' ? this.rollingAhiData
       : this.selectedSignal.source === 'vitals' ? this.vitalsData : this.signalData;
     return (src as any)?.[key] || [];
   }
@@ -751,6 +760,7 @@ export class SessionDetailComponent implements OnInit, OnDestroy {
       const labels = sig.source === 'oximetry' ? this.oximetryLabels
         : sig.source === 'vitals' ? this.vitalsLabels : this.signalLabels;
       const src = sig.source === 'oximetry' ? this.oximetryData
+        : sig.source === 'rolling-ahi' ? this.rollingAhiData
         : sig.source === 'vitals' ? this.vitalsData : this.signalData;
       const data = (src as any)?.[sig.key] || [];
 
