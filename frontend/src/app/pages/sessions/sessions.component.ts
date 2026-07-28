@@ -20,6 +20,9 @@ export class SessionsComponent implements OnInit, OnDestroy {
   openMenu: string | null = null;
   sleephqEnabled = false;   // gates the per-session "Upload to SleepHQ" action
   private refreshTimer: any = null;
+  viewMode: 'list' | 'calendar' = 'list';
+  calYear = new Date().getFullYear();
+  calMonth = new Date().getMonth();
 
   // Recency-based pagination: load the latest `pageSize` nights, then "Load more"
   // walks back through history a page at a time.
@@ -317,5 +320,67 @@ export class SessionsComponent implements OnInit, OnDestroy {
         this.actionInProgress[key] = false;
       }
     });
+  }
+
+  setView(mode: 'list' | 'calendar') {
+    this.viewMode = mode;
+  }
+
+  get calMonthLabel(): string {
+    return new Date(this.calYear, this.calMonth, 1).toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  }
+
+  prevMonth() {
+    if (this.calMonth === 0) { this.calMonth = 11; this.calYear--; }
+    else this.calMonth--;
+  }
+
+  nextMonth() {
+    if (this.calMonth === 11) { this.calMonth = 0; this.calYear++; }
+    else this.calMonth++;
+  }
+
+  get calWeeks(): { day?: number; session?: SessionListItem; isToday?: boolean }[][] {
+    const firstDay = new Date(this.calYear, this.calMonth, 1);
+    const lastDay = new Date(this.calYear, this.calMonth + 1, 0);
+    const startOffset = (firstDay.getDay() + 6) % 7; // Monday = 0
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Build session lookup by sleep_day
+    const byDay: Record<string, SessionListItem> = {};
+    for (const s of this.sessions) {
+      const d = s.sleep_day || this.sleepDay(s.session_start);
+      byDay[d] = s;
+    }
+
+    const weeks: { day?: number; session?: SessionListItem; isToday?: boolean }[][] = [];
+    let week: { day?: number; session?: SessionListItem; isToday?: boolean }[] = [];
+
+    for (let i = 0; i < startOffset; i++) week.push({});
+
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const dateStr = `${this.calYear}-${String(this.calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      week.push({
+        day: d,
+        session: byDay[dateStr],
+        isToday: dateStr === today,
+      });
+      if (week.length === 7) { weeks.push(week); week = []; }
+    }
+    if (week.length > 0) {
+      while (week.length < 7) week.push({});
+      weeks.push(week);
+    }
+    return weeks;
+  }
+
+  isCompliant(s: SessionListItem): boolean {
+    return parseFloat(s.duration_hours) >= 4.0;
+  }
+
+  formatCalDur(hours: string): string {
+    const h = parseFloat(hours);
+    if (isNaN(h)) return '0';
+    return h.toFixed(1);
   }
 }

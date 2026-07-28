@@ -53,3 +53,32 @@ h2 { color: #e0e0e0; margin-bottom: 1rem; }
 .load-more:hover:not(:disabled) { background: #34344a; }
 .load-more:disabled { opacity: 0.5; cursor: not-allowed; }
 .load-more i { margin-right: 0.4rem; }
+
+/* Calendar view */
+.head-actions { display: flex; gap: 0.5rem; align-items: center; }
+.view-toggle { background: #2a2a3a; border: 1px solid #444; color: #cbd5e1; padding: 0.4rem 0.8rem;
+  border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+.view-toggle:hover { background: #34344a; }
+.view-toggle.active { background: #60a5fa22; border-color: #60a5fa; color: #93c5fd; }
+.calendar-view { margin: 0.5rem 0; }
+.cal-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+.cal-btn { background: #2a2a3a; border: 1px solid #444; color: #ccc; padding: 0.3rem 0.7rem;
+  border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+.cal-month { font-size: 1rem; font-weight: 600; color: #e0e0e0; min-width: 140px; text-align: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: 0.7rem; color: #888; padding: 0.3rem 0; font-weight: 600; }
+.cal-week { display: contents; }
+.cal-cell { min-height: 70px; border: 1px solid #333; border-radius: 6px; padding: 0.3rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  cursor: default; transition: transform 0.1s; }
+.cal-cell.empty { border-color: transparent; }
+.cal-cell.no-data { background: #1a1a2a; }
+.cal-cell.has-data { background: #1e2a1e; cursor: pointer; }
+.cal-cell.has-data:hover { transform: scale(1.05); }
+.cal-cell.compliant { background: #1a3a1a; border-color: #4ade8055; }
+.cal-cell.noncompliant { background: #3a1a1a; border-color: #f8717155; }
+.cal-cell.today { outline: 2px solid #60a5fa; }
+.cal-cell.cmp-selected { outline: 2px solid #a78bfa; }
+.cal-day { font-size: 0.75rem; color: #aaa; }
+.cal-ahi { font-size: 1.1rem; font-weight: 700; color: #e0e0e0; line-height: 1.2; }
+.cal-dur { font-size: 0.65rem; color: #888; }
