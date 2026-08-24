@@ -1,6 +1,9 @@
 export interface AppConfig {
   device_id: string;
   device_name: string;
+  patient_name: string;
+  patient_birth_date: string;
+  language: string;
   source: string;
   ezshare_url: string;
   ezshare_range: boolean;

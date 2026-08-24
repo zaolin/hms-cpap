@@ -12,6 +12,11 @@ struct AppConfig {
     std::string device_id = "cpap_resmed_23243570851";
     std::string device_name = "ResMed AirSense 10";
 
+    // Patient (for medical reports / doctor export)
+    std::string patient_name;
+    std::string patient_birth_date;
+    std::string language = "en";
+
     // Data source
     std::string source = "ezshare";  // "ezshare" (HTTP), "local"
     std::string ezshare_url = "http://192.168.4.1";
@@ -285,6 +290,9 @@ struct AppConfig {
 
             if (j.contains("device_id"))    config.device_id = j["device_id"];
             if (j.contains("device_name"))  config.device_name = j["device_name"];
+            if (j.contains("patient_name"))  config.patient_name = j["patient_name"];
+            if (j.contains("patient_birth_date")) config.patient_birth_date = j["patient_birth_date"];
+            if (j.contains("language"))     config.language = j["language"];
             if (j.contains("source"))       config.source = j["source"];
             if (j.contains("ezshare_url"))    config.ezshare_url = j["ezshare_url"];
             if (j.contains("ezshare_range")) config.ezshare_range = j["ezshare_range"];
@@ -404,6 +412,9 @@ struct AppConfig {
             nlohmann::json j;
             j["device_id"] = device_id;
             j["device_name"] = device_name;
+            j["patient_name"] = patient_name;
+            j["patient_birth_date"] = patient_birth_date;
+            j["language"] = language;
             j["source"] = source;
             j["ezshare_url"] = ezshare_url;
             j["ezshare_range"] = ezshare_range;
@@ -491,6 +502,9 @@ struct AppConfig {
         nlohmann::json j;
         j["device_id"] = device_id;
         j["device_name"] = device_name;
+        j["patient_name"] = patient_name;
+        j["patient_birth_date"] = patient_birth_date;
+        j["language"] = language;
         j["source"] = source;
         j["ezshare_url"] = ezshare_url;
         j["ezshare_range"] = ezshare_range;

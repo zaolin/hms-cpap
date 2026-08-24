@@ -289,7 +289,7 @@ void CpapController::exportSummaryCsv(const drogon::HttpRequestPtr& req,
         auto rows = qs_->getDailySummary(start, end);
 
         std::ostringstream ss;
-        ss << "date,duration_minutes,ahi,ai,hi,oai,cai,uai,rin,csr,"
+        ss << "date,duration_minutes,ahi,rdi,rin,ai,hi,oai,cai,uai,rin,csr,"
            << "mask_press_50,mask_press_95,mask_press_max,"
            << "leak_50,leak_95,leak_max,"
            << "spo2_50,spo2_95,"
@@ -304,6 +304,7 @@ void CpapController::exportSummaryCsv(const drogon::HttpRequestPtr& req,
             ss << g("record_date") << ","
                << g("duration_minutes") << ","
                << g("ahi") << ","
+               << g("rdi") << ","
                << g("ai") << ","
                << g("hi") << ","
                << g("oai") << ","
@@ -399,6 +400,9 @@ void CpapController::updateConfig(const drogon::HttpRequestPtr& req,
     // Update fields if present
     if (j.isMember("device_id")) config_->device_id = j["device_id"].asString();
     if (j.isMember("device_name")) config_->device_name = j["device_name"].asString();
+    if (j.isMember("patient_name")) config_->patient_name = j["patient_name"].asString();
+    if (j.isMember("patient_birth_date")) config_->patient_birth_date = j["patient_birth_date"].asString();
+    if (j.isMember("language")) config_->language = j["language"].asString();
     if (j.isMember("source")) config_->source = j["source"].asString();
     if (j.isMember("ezshare_url")) config_->ezshare_url = j["ezshare_url"].asString();
     if (j.isMember("ezshare_range")) config_->ezshare_range = j["ezshare_range"].asBool();

@@ -45,7 +45,7 @@ WORKDIR /build
 COPY CMakeLists.txt VERSION ./
 COPY src/ ./src/
 COPY include/ ./include/
-COPY llm_prompt.txt ./
+COPY llm_prompt.txt llm_prompt_de.txt ./
 
 # Build HMS-CPAP with Web UI support
 RUN mkdir build && cd build && \

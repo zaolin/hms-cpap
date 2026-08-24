@@ -18,6 +18,8 @@ Json::Value QueryService::getDashboard() {
         "SELECT record_date as sleep_day,"
         " " + sql::round("duration_minutes / 60.0", 2, dt_) + " as usage_hours,"
         " " + sql::round("ahi", 2, dt_) + " as ahi,"
+        " " + sql::round("COALESCE(rin, 0)", 2, dt_) + " as rin,"
+        " " + sql::round("(ahi + COALESCE(rin, 0))", 2, dt_) + " as rdi,"
         " " + sql::round("COALESCE(leak_50, 0)", 1, dt_) + " as leak_avg,"
         " COALESCE(mode, 0) as therapy_mode"
         " FROM cpap_daily_summary"
@@ -26,7 +28,8 @@ Json::Value QueryService::getDashboard() {
 
     // --- AHI trend (30 days) ---
     std::string q_ahi =
-        "SELECT record_date as date, ahi as value"
+        "SELECT record_date as date, ahi as value,"
+        " COALESCE(rin, 0) as rin, (ahi + COALESCE(rin, 0)) as rdi"
         " FROM cpap_daily_summary"
         " WHERE device_id = " + sql::param(1, dt_) +
         " AND record_date >= " + sql::currentDateMinus(30, dt_) +
@@ -62,6 +65,8 @@ Json::Value QueryService::getDashboard() {
     if (latest.size() > 0) {
         ln["date"]        = latest[0].get("sleep_day", Json::nullValue);
         ln["ahi"]         = latest[0].get("ahi", "0");
+        ln["rin"]         = latest[0].get("rin", "0");
+        ln["rdi"]         = latest[0].get("rdi", "0");
         ln["usage_hours"] = latest[0].get("usage_hours", "0");
         ln["leak_avg"]    = latest[0].get("leak_avg", "0");
         ln["therapy_mode"] = latest[0].get("therapy_mode", "0");
@@ -154,6 +159,7 @@ Json::Value QueryService::getSessionDetail(const std::string& date) {
 Json::Value QueryService::getDailySummary(const std::string& start, const std::string& end) {
     std::string q =
         "SELECT record_date, duration_minutes, ahi, hi, ai, oai, cai, uai, rin,"
+        " (ahi + COALESCE(rin, 0)) as rdi,"
         " leak_50, leak_95, leak_max,"
         " mask_press_50, mask_press_95, mask_press_max,"
         " spo2_50, spo2_95,"
@@ -171,6 +177,8 @@ Json::Value QueryService::getDailySummary(const std::string& start, const std::s
 Json::Value QueryService::getTrend(const std::string& metric, int days) {
     std::string columns;
     if (metric == "ahi")           columns = "record_date, ahi, hi, ai, oai, cai";
+    else if (metric == "rdi")      columns = "record_date, (ahi + COALESCE(rin, 0)) as rdi, ahi, COALESCE(rin, 0) as rin";
+    else if (metric == "rera")     columns = "record_date, COALESCE(rin, 0) as rin";
     else if (metric == "pressure") columns = "record_date, mask_press_50, mask_press_95, mask_press_max";
     else if (metric == "leak")     columns = "record_date, leak_50, leak_95, leak_max";
     else if (metric == "spo2")     columns = "record_date, spo2_50, spo2_95";
@@ -182,7 +190,7 @@ Json::Value QueryService::getTrend(const std::string& metric, int days) {
     else if (metric == "epr")    columns = "record_date, epr_level";
     else {
         Json::Value err;
-        err["error"] = "Unknown metric. Use: ahi, pressure, leak, spo2, hr, duration";
+        err["error"] = "Unknown metric. Use: ahi, rdi, rera, pressure, leak, spo2, hr, duration";
         return err;
     }
 
@@ -198,6 +206,8 @@ Json::Value QueryService::getStatistics(const std::string& start, const std::str
     std::string q =
         "SELECT COUNT(*) as total_nights,"
         " " + sql::round("AVG(ahi)", 2, dt_) + " as avg_ahi,"
+        " " + sql::round("AVG(ahi + COALESCE(rin, 0))", 2, dt_) + " as avg_rdi,"
+        " " + sql::round("AVG(COALESCE(rin, 0))", 2, dt_) + " as avg_rin,"
         " " + sql::round("MIN(ahi)", 2, dt_) + " as min_ahi,"
         " " + sql::round("MAX(ahi)", 2, dt_) + " as max_ahi,"
         " " + sql::round(sql::stddev("ahi", dt_), 2, dt_) + " as stddev_ahi,"
@@ -245,6 +255,7 @@ static double jdouble(const Json::Value& obj, const char* key) {
 Json::Value QueryService::getInsights(int days) {
     std::string q =
         "SELECT record_date, duration_minutes, ahi, hi, ai, oai, cai, uai, rin,"
+        " (ahi + COALESCE(rin, 0)) as rdi,"
         " COALESCE(csr, 0) as csr,"
         " mask_press_50, mask_press_95, mask_press_max,"
         " leak_50, leak_95, leak_max,"

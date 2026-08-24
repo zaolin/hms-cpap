@@ -1,8 +1,11 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 
 export interface KeyMetricsData {
   ahi: number;
+  rdi?: number;
+  rin?: number;
   usageHours: number;
   leakP95: number;
   totalEvents: number;
@@ -14,7 +17,7 @@ export interface KeyMetricsData {
 @Component({
   selector: 'app-key-metrics',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   template: `
     <div class="section">
       <div class="section-header">
@@ -27,10 +30,23 @@ export interface KeyMetricsData {
             <i class="fa-solid fa-heart-pulse"></i>
           </div>
           <div class="mu-content">
-            <div class="mu-primary">AHI Score</div>
+            <div class="mu-primary">{{ 'metric.ahi' | translate }}</div>
             <div class="mu-secondary">
               <span class="mu-value">{{ data.ahi.toFixed(1) }}</span>
               <span class="mu-assess">{{ ahiLabel }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mu-card" *ngIf="data && data.rdi !== undefined">
+          <div class="mu-icon" [style.background]="rdiColor + '22'" [style.color]="rdiColor">
+            <i class="fa-solid fa-lungs"></i>
+          </div>
+          <div class="mu-content">
+            <div class="mu-primary">{{ 'metric.rdi' | translate }}</div>
+            <div class="mu-secondary">
+              <span class="mu-value">{{ data.rdi.toFixed(1) }}</span>
+              <span class="mu-assess">AHI + RERA</span>
             </div>
           </div>
         </div>
@@ -40,7 +56,7 @@ export interface KeyMetricsData {
             <i class="fa-solid fa-clock-rotate-left"></i>
           </div>
           <div class="mu-content">
-            <div class="mu-primary">Usage</div>
+            <div class="mu-primary">{{ 'metric.usage' | translate }}</div>
             <div class="mu-secondary">
               <span class="mu-value">{{ fmtDuration(data.usageHours) }}</span>
               <span class="mu-assess" *ngIf="data.usageHours >= 4">4h+ target met</span>
@@ -53,7 +69,7 @@ export interface KeyMetricsData {
             <i class="fa-solid fa-wind"></i>
           </div>
           <div class="mu-content">
-            <div class="mu-primary">Mask Leak</div>
+            <div class="mu-primary">{{ 'metric.leak' | translate }}</div>
             <div class="mu-secondary">
               <span class="mu-value">{{ data.leakP95.toFixed(1) }} L/min</span>
               <span class="mu-assess">{{ leakLabel }}</span>
@@ -66,7 +82,7 @@ export interface KeyMetricsData {
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
           <div class="mu-content">
-            <div class="mu-primary">Total Events</div>
+            <div class="mu-primary">{{ 'metric.events' | translate }}</div>
             <div class="mu-secondary">
               <span class="mu-value">{{ data.totalEvents }}</span>
               <span class="mu-assess">{{ data.ahi.toFixed(1) }} events/hr</span>
@@ -121,6 +137,11 @@ export class KeyMetricsComponent {
   get ahiColor(): string {
     if (!this.data) return '#888';
     return this.data.ahi < 5 ? '#4ade80' : this.data.ahi < 15 ? '#fb923c' : '#ef4444';
+  }
+  get rdiColor(): string {
+    if (!this.data) return '#888';
+    const rdi = this.data.rdi ?? 0;
+    return rdi < 5 ? '#4ade80' : rdi < 15 ? '#fb923c' : '#ef4444';
   }
   get ahiLabel(): string {
     if (!this.data) return '';

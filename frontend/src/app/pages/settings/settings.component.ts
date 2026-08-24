@@ -460,6 +460,47 @@ import { AppConfig } from '../../models/config.model';
           </div>
         </div>
 
+        <!-- Section 8: Patient -->
+        <div class="section">
+          <div class="section-header" (click)="toggle('patient')">
+            <span class="chevron" [class.open]="open['patient']">&#9654;</span>
+            Patient
+            <span class="badge">doctor reports</span>
+          </div>
+          <div class="section-body" *ngIf="open['patient']">
+            <p class="section-desc">
+              Patient data appears on PDF reports for your doctor.
+            </p>
+            <label>
+              Patient Name
+              <input type="text" [(ngModel)]="config.patient_name" name="patient_name"
+                     placeholder="Max Mustermann" />
+            </label>
+            <label>
+              Date of Birth
+              <input type="date" [(ngModel)]="config.patient_birth_date" name="patient_birth_date" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Section 9: Language -->
+        <div class="section">
+          <div class="section-header" (click)="toggle('language')">
+            <span class="chevron" [class.open]="open['language']">&#9654;</span>
+            Language / Sprache
+          </div>
+          <div class="section-body" *ngIf="open['language']">
+            <label>
+              Language
+              <select [(ngModel)]="config.language" name="language">
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+              </select>
+              <span class="hint">Affects UI labels, PDF reports, LLM summaries, and CSV export headers</span>
+            </label>
+          </div>
+        </div>
+
         <div class="actions">
           <button type="submit" class="btn-save" [disabled]="saving">
             {{ saving ? 'Saving...' : 'Save' }}
@@ -650,6 +691,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     ml_training: false,
     llm_prompt: false,
     device: true,
+    patient: false,
+    language: false,
   };
 
   constructor(private api: CpapApiService) {}
@@ -662,6 +705,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.api.getConfig().subscribe({
       next: (cfg) => {
+        // Ensure new fields exist with defaults
+        if (!cfg.patient_name) cfg.patient_name = '';
+        if (!cfg.patient_birth_date) cfg.patient_birth_date = '';
+        if (!cfg.language) cfg.language = 'en';
         // Ensure ml_training exists with defaults
         if (!cfg.ml_training) {
           cfg.ml_training = { enabled: false, schedule: 'weekly', model_dir: '', min_days: 30, max_training_days: 0 };

@@ -156,7 +156,17 @@ void BurstCollectorService::initLlm() {
 
     llm_client_ = std::make_unique<hms::LLMClient>(llm_config);
 
+    // Load LLM prompt template — use language-specific file if available
     std::string prompt_file = ConfigManager::get("LLM_PROMPT_FILE", "");
+    if (prompt_file.empty() && app_config_) {
+        // Auto-select based on language setting
+        std::string lang = app_config_->language;
+        if (lang == "de") {
+            prompt_file = "llm_prompt_de.txt";
+        } else {
+            prompt_file = "llm_prompt.txt";
+        }
+    }
     if (!prompt_file.empty())
         llm_prompt_template_ = hms::LLMClient::loadPromptFile(prompt_file);
 

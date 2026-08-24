@@ -9,12 +9,14 @@ export interface DashboardData {
   latest_night: {
     date: string;
     ahi: string;
+    rin?: string;
+    rdi?: string;
     usage_hours: string;
     leak_avg: string;
     compliance_pct: string;
     therapy_mode: string;  // 0=CPAP, 1=APAP, 7=ASV, 8=ASVAuto
   };
-  ahi_trend: { date: string; value: string }[];
+  ahi_trend: { date: string; value: string; rin?: string; rdi?: string }[];
   usage_trend: { date: string; value: string }[];
 }
 

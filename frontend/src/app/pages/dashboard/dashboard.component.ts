@@ -272,6 +272,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       // Populate key metrics (initial from STR, overridden by sessions below)
       this.keyMetrics = {
         ahi: parseFloat(d.latest_night.ahi) || 0,
+        rdi: parseFloat(d.latest_night.rdi || '0') || 0,
+        rin: parseFloat(d.latest_night.rin || '0') || 0,
         usageHours: parseFloat(d.latest_night.usage_hours) || 0,
         leakP95: parseFloat(d.latest_night.leak_avg) || 0,
         totalEvents: 0,
@@ -598,20 +600,28 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       y: { ticks: { color: '#888' }, grid: { color: '#333' }, beginAtZero },
     });
 
-    // AHI Trend
+    // AHI + RDI Trend
     this.charts.push(new Chart(this.ahiChartRef.nativeElement, {
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: 'AHI', data: this.data.ahi_trend.map(p => +p.value),
-          borderColor: '#64b5f6', backgroundColor: 'rgba(100,181,246,0.1)',
-          fill: true, tension: 0.3, pointRadius: 3,
-        }]
+        datasets: [
+          {
+            label: 'AHI', data: this.data.ahi_trend.map(p => +p.value),
+            borderColor: '#64b5f6', backgroundColor: 'rgba(100,181,246,0.1)',
+            fill: true, tension: 0.3, pointRadius: 3,
+          },
+          {
+            label: 'RDI (AHI+RERA)', data: this.data.ahi_trend.map(p => +(p.rdi || p.value)),
+            borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.05)',
+            fill: false, tension: 0.3, pointRadius: 2, borderDash: [5, 3],
+          }
+        ]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false }, title: { display: true, text: 'AHI Trend (30 days)', color: '#e0e0e0' } },
+        plugins: { legend: { display: true, labels: { color: '#aaa', boxWidth: 20 } },
+                   title: { display: true, text: 'AHI & RDI Trend (30 days)', color: '#e0e0e0' } },
         scales: darkScales(),
       }
     }));
