@@ -658,28 +658,42 @@ void BurstCollectorService::processSessionSummary() {
     processSTRFile();
 }
 
+std::string BurstCollectorService::getDatalogDir() const {
+    if (local_source_dir_.empty()) return "";
+    // local_source_dir_ is the SD card root. The DATALOG folder is a subfolder.
+    // Try common variations (case-sensitive on Linux).
+    for (auto& name : {"DATALOG", "datalog", "DataLog"}) {
+        auto p = std::filesystem::path(local_source_dir_) / name;
+        if (std::filesystem::exists(p) && std::filesystem::is_directory(p))
+            return p.string();
+    }
+    // Backwards compat: if local_source_dir_ itself contains YYYYMMDD folders,
+    // it was configured as the DATALOG dir directly.
+    return local_source_dir_;
+}
+
 void BurstCollectorService::processSTRFile() {
     try {
         std::string str_local_path;
 
         if (!local_source_dir_.empty()) {
-            // Local mode: STR.edf lives at the SD root, one level above DATALOG
-            // local_source_dir_ points to .../DATALOG, so look in parent
-            auto parent = std::filesystem::path(local_source_dir_).parent_path();
+            // Local mode: local_source_dir_ is the SD card root (contains STR.edf + DATALOG/)
+            // Try the root first, then the parent as fallback (backwards compat)
             for (auto& name : {"STR.edf", "STR.EDF"}) {
-                auto p = parent / name;
+                auto p = std::filesystem::path(local_source_dir_) / name;
                 if (std::filesystem::exists(p)) { str_local_path = p.string(); break; }
             }
-            // Also check inside local_source_dir_ as fallback
             if (str_local_path.empty()) {
+                // Fallback: maybe local_dir was set to DATALOG directly (old config)
+                auto parent = std::filesystem::path(local_source_dir_).parent_path();
                 for (auto& name : {"STR.edf", "STR.EDF"}) {
-                    auto p = std::filesystem::path(local_source_dir_) / name;
+                    auto p = parent / name;
                     if (std::filesystem::exists(p)) { str_local_path = p.string(); break; }
                 }
             }
             if (str_local_path.empty()) {
-                std::cerr << "STR: Not found in " << parent.string()
-                          << " or " << local_source_dir_ << " (non-fatal)" << std::endl;
+                std::cerr << "STR: Not found in " << local_source_dir_
+                          << " (non-fatal)" << std::endl;
                 return;
             }
         } else {
@@ -942,10 +956,11 @@ bool BurstCollectorService::executeBurstCycle() {
 
     } else if (!local_source_dir_.empty()) {
         // ===== LOCAL SOURCE MODE =====
-        std::cout << "CPAP: Scanning local directory " << local_source_dir_ << std::endl;
+        std::string datalog_dir = getDatalogDir();
+        std::cout << "CPAP: Scanning local directory " << datalog_dir << std::endl;
 
         new_sessions = SessionDiscoveryService::discoverLocalSessions(
-            local_source_dir_, last_session_start);
+            datalog_dir, last_session_start);
 
         // Local mode: STR.edf is static lifetime history on disk, and these
         // sessions never transition to "completed" the way growing ezShare files
@@ -1064,7 +1079,7 @@ bool BurstCollectorService::executeBurstCycle() {
                 std::filesystem::remove(entry.path());
             }
 
-            std::string src_dir = local_source_dir_ + "/" + session.date_folder;
+            std::string src_dir = getDatalogDir() + "/" + session.date_folder;
             auto stageFile = [&](const std::string& filename) {
                 auto src = std::filesystem::path(src_dir) / filename;
                 auto dst = std::filesystem::path(temp_dir) / filename;

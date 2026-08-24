@@ -157,7 +157,8 @@ private:
     /// SDD-004 optional cloud mirror; null when the feature is off.
     std::shared_ptr<CpapDashSyncService> cpapdash_sync_;
     std::string device_name_;
-    std::string local_source_dir_;  // Empty = ezShare mode, set = local filesystem mode
+    std::string local_source_dir_;  // SD card root (contains STR.edf + DATALOG/)
+    std::string getDatalogDir() const;
     std::string cpap_source_;       // "ezshare", "local", "fysetc", or "lowenstein"
 
     // Data source (ezShare HTTP or Fysetc TCP — both implement IDataSource)

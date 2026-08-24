@@ -45,7 +45,8 @@ import { AppConfig } from '../../models/config.model';
             </label>
             <label *ngIf="config.source === 'local'">
               Local Directory
-              <input type="text" [(ngModel)]="config.local_dir" name="local_dir" placeholder="/path/to/sd/DATALOG" />
+              <input type="text" [(ngModel)]="config.local_dir" name="local_dir" placeholder="/path/to/sd-card-root" />
+              <span class="hint">SD card root (contains STR.edf + DATALOG/ folder)</span>
             </label>
           </div>
         </div>
