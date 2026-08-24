@@ -10,6 +10,7 @@ import { SessionDetail, SessionEvent, SignalData, VitalsData, OximetryData } fro
 import { formatTimestamps, eventAnnotations, makeDataset, makeFillBand, EVENT_COLORS } from '../../utils/chart-helpers';
 import { detectDesaturations, desatAnnotations, odiPerHour, inferSampleSec } from '../../utils/signal-analysis';
 import { Chart, ChartDataset, registerables } from 'chart.js';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
@@ -58,7 +59,7 @@ interface JournalEntry { content: string; updated_at?: string; }
 @Component({
   selector: 'app-session-detail',
   standalone: true,
-  imports: [CommonModule, MetricCardComponent, FormsModule],
+  imports: [CommonModule, MetricCardComponent, FormsModule, TranslatePipe],
   template: `
     <div class="detail-page" *ngIf="session">
       <div class="top-bar">

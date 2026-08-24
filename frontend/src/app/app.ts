@@ -3,6 +3,7 @@ import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
 import { NavBarComponent } from './components/nav-bar/nav-bar.component';
 import { CpapApiService } from './services/cpap-api.service';
+import { TranslateService } from './i18n/translate.service';
 
 @Component({
   selector: 'app-root',
@@ -24,7 +25,7 @@ import { CpapApiService } from './services/cpap-api.service';
 export class AppComponent implements OnInit {
   isSetup = false;
 
-  constructor(private api: CpapApiService, private router: Router) {
+  constructor(private api: CpapApiService, private router: Router, private translate: TranslateService) {
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd)
     ).subscribe(e => {
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit {
   ngOnInit(): void {
     this.api.getConfig().subscribe({
       next: (cfg) => {
+        if (cfg.language) this.translate.setLang(cfg.language);
         if (!cfg.setup_complete) {
           this.router.navigate(['/setup']);
         }

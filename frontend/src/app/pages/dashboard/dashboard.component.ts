@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angula
 import { CommonModule } from '@angular/common';
 import { CpapApiService } from '../../services/cpap-api.service';
 import { KeyMetricsComponent, KeyMetricsData } from '../../components/dashboard/key-metrics.component';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 import { OximetryRowComponent, OximetryRowData } from '../../components/dashboard/oximetry-row.component';
 import { AiSummaryComponent } from '../../components/dashboard/ai-summary.component';
 import { TherapyInsightsComponent } from '../../components/dashboard/therapy-insights.component';
@@ -22,7 +23,7 @@ const MODE_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, KeyMetricsComponent, OximetryRowComponent, AiSummaryComponent,
+  imports: [CommonModule, TranslatePipe, KeyMetricsComponent, OximetryRowComponent, AiSummaryComponent,
             TherapyInsightsComponent, StrMetricsComponent, EventsBreakdownComponent,
             PressureSectionComponent, RespiratoryMetricsComponent, RealtimeStatusComponent,
             MlIntelligenceComponent],

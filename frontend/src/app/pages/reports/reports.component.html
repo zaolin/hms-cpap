@@ -1,15 +1,15 @@
 <div class="reports-page">
-  <h2>PDF Reports</h2>
+  <h2>{{ 'reports.title' | translate }}</h2>
 
   <div class="generate-card">
-    <h3>Generate Report</h3>
+    <h3>{{ 'reports.generate' | translate }}</h3>
     <div class="form-row">
       <div class="field">
-        <label>Start Date</label>
+        <label>{{ 'reports.start_date' | translate }}</label>
         <input type="date" [(ngModel)]="startDate" />
       </div>
       <div class="field">
-        <label>End Date</label>
+        <label>{{ 'reports.end_date' | translate }}</label>
         <input type="date" [(ngModel)]="endDate" />
       </div>
       <button class="generate-btn" (click)="generate()" [disabled]="generating || !startDate || !endDate">
@@ -26,7 +26,7 @@
   </div>
 
   <div class="table-section">
-    <h3>Generated Reports</h3>
+    <h3>{{ 'reports.generated' | translate }}</h3>
     <div class="empty" *ngIf="reports.length === 0">No reports yet.</div>
     <table class="reports-table" *ngIf="reports.length > 0">
       <thead>

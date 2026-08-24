@@ -1,13 +1,14 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CpapApiService } from '../../services/cpap-api.service';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 
 type ZoneState = 'idle' | 'uploading' | 'processing' | 'complete' | 'error';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './upload.component.html',
   styleUrls: ['./upload.component.css']
 })

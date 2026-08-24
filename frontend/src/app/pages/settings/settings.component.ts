@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, timer } from 'rxjs';
 import { switchMap, takeUntil, takeWhile, tap } from 'rxjs/operators';
 import { CpapApiService } from '../../services/cpap-api.service';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 import { AppConfig } from '../../models/config.model';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, TranslatePipe, FormsModule],
   template: `
     <div class="settings">
       <h2>Settings</h2>
