@@ -87,6 +87,10 @@ RUN useradd -r -u 1000 -m -s /bin/bash cpap
 # Grant cpap user access to BlueZ / D-Bus for direct BLE O2 Ring connectivity
 RUN usermod -aG bluetooth cpap
 
+# Copy LLM prompt files from builder
+COPY --from=builder /build/llm_prompt.txt /home/cpap/llm_prompt.txt
+COPY --from=builder /build/llm_prompt_de.txt /home/cpap/llm_prompt_de.txt
+
 # Copy binary from builder
 COPY --from=builder /build/build/hms_cpap /usr/local/bin/hms_cpap
 RUN chmod +x /usr/local/bin/hms_cpap
